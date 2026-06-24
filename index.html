@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arroyohondo - Sistema de Gestión</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;background:#f5f0e8;color:#222;display:flex;min-height:100vh}
+    #app{display:flex;width:100%;min-height:100vh}
+
+    /* LOADING */
+    #loading-screen{position:fixed;inset:0;background:#f5f0e8;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+    .spinner{width:48px;height:48px;border:5px solid #d1d5db;border-top-color:#2d5a3d;border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #loading-screen p{color:#6b7280;font-size:0.9rem}
+
+    /* SIDEBAR */
+    #sidebar{width:240px;min-height:100vh;background:#1a3a2a;display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100}
+    .sidebar-header{padding:24px 20px 20px;border-bottom:1px solid #2d5a3d;display:flex;align-items:center;gap:12px}
+    .logo-horse{font-size:2rem}
+    .logo-title{font-family:'Playfair Display',serif;color:#c9a84c;font-size:1.1rem;font-weight:700;letter-spacing:1px}
+    .logo-sub{color:#6b9b7a;font-size:0.7rem;letter-spacing:2px;text-transform:uppercase}
+    .nav-menu{list-style:none;padding:12px 0;flex:1}
+    .nav-item{display:flex;align-items:center;gap:12px;padding:12px 20px;color:#a8c4b0;cursor:pointer;transition:all .2s;font-size:0.875rem;font-weight:500;border-left:3px solid transparent}
+    .nav-item:hover{background:#2d5a3d;color:#fff}
+    .nav-item.active{background:#2d5a3d;color:#c9a84c;border-left-color:#c9a84c}
+    .nav-item .icon{font-size:1.1rem;width:22px;text-align:center}
+
+    /* MAIN */
+    #main{margin-left:240px;flex:1;padding:32px;min-height:100vh}
+    .section{display:none}
+    .section.active{display:block}
+
+    /* PAGE HEADER */
+    .page-header{margin-bottom:28px}
+    .page-header h1{font-family:'Playfair Display',serif;font-size:1.8rem;color:#1a3a2a;font-weight:700}
+    .page-header p{color:#6b7280;font-size:0.875rem;margin-top:4px}
+
+    /* CARDS */
+    .card{background:#fff;border-radius:12px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:28px}
+    .stat-card{background:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-left:4px solid #c9a84c}
+    .stat-card.green{border-left-color:#2d5a3d}
+    .stat-card.red{border-left-color:#dc2626}
+    .stat-card.blue{border-left-color:#2563eb}
+    .stat-card.teal{border-left-color:#0d9488}
+    .stat-num{font-size:2rem;font-weight:700;color:#1a3a2a;font-family:'Playfair Display',serif}
+    .stat-label{font-size:0.8rem;color:#6b7280;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+
+    /* TOOLBAR */
+    .toolbar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+    .toolbar input,.toolbar select{padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;background:#fff;font-family:'Inter',sans-serif;outline:none}
+    .toolbar input:focus,.toolbar select:focus{border-color:#2d5a3d}
+    .toolbar input{min-width:200px}
+    .btn{padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:0.85rem;font-weight:500;font-family:'Inter',sans-serif;transition:all .2s}
+    .btn-primary{background:#2d5a3d;color:#fff}
+    .btn-primary:hover{background:#1a3a2a}
+    .btn-gold{background:#c9a84c;color:#fff}
+    .btn-gold:hover{background:#b8942e}
+    .btn-sm{padding:5px 12px;font-size:0.78rem}
+    .btn-danger{background:#dc2626;color:#fff}
+    .btn-danger:hover{background:#b91c1c}
+    .btn-edit{background:#e0f2fe;color:#0369a1}
+    .btn-edit:hover{background:#bae6fd}
+
+    /* TABLE */
+    .table-wrap{overflow-x:auto;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+    table{width:100%;border-collapse:collapse;background:#fff;font-size:0.83rem}
+    thead tr{background:#1a3a2a;color:#fff}
+    thead th{padding:12px 14px;text-align:left;font-weight:600;white-space:nowrap;font-size:0.78rem;letter-spacing:.4px;text-transform:uppercase}
+    tbody tr{border-bottom:1px solid #f3f4f6;transition:background .15s}
+    tbody tr:hover{background:#f9fafb}
+    tbody td{padding:11px 14px;vertical-align:middle}
+    .actions{display:flex;gap:6px;white-space:nowrap}
+
+    /* BADGES */
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.73rem;font-weight:600;white-space:nowrap}
+    .badge-green{background:#d1fae5;color:#065f46}
+    .badge-red{background:#fee2e2;color:#991b1b}
+    .badge-blue{background:#dbeafe;color:#1e40af}
+    .badge-orange{background:#fed7aa;color:#9a3412}
+    .badge-teal{background:#ccfbf1;color:#115e59}
+    .badge-purple{background:#ede9fe;color:#5b21b6}
+    .badge-gray{background:#f3f4f6;color:#374151}
+
+    /* MODAL */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center}
+    .modal-box{background:#fff;border-radius:16px;width:min(700px,95vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+    .modal-header{padding:20px 24px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+    .modal-header span{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:600;color:#1a3a2a}
+    .modal-header button{background:none;border:none;font-size:1.3rem;cursor:pointer;color:#6b7280;line-height:1}
+    .modal-header button:hover{color:#111}
+    .modal-body{padding:24px;overflow-y:auto;flex:1}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .form-grid.cols3{grid-template-columns:1fr 1fr 1fr}
+    .form-full{grid-column:1/-1}
+    .form-group{display:flex;flex-direction:column;gap:5px}
+    .form-group label{font-size:0.8rem;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.3px}
+    .form-group input,.form-group select,.form-group textarea{padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#2d5a3d}
+    .form-group textarea{resize:vertical;min-height:70px}
+    .modal-footer{padding:16px 24px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:10px}
+    .btn-cancel{background:#f3f4f6;color:#374151}
+    .btn-cancel:hover{background:#e5e7eb}
+
+    /* DASHBOARD */
+    .dash-section-title{font-family:'Playfair Display',serif;font-size:1.1rem;color:#1a3a2a;margin:24px 0 12px;font-weight:600}
+    .recent-table table{font-size:0.82rem}
+
+    /* FERIAS */
+    .trophy{color:#c9a84c;font-weight:700}
+
+    /* NOMINA */
+    .nomina-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-top:4px solid #2d5a3d}
+    .nomina-name{font-family:'Playfair Display',serif;font-size:1.1rem;color:#1a3a2a;margin-bottom:12px;font-weight:600}
+    .nomina-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:0.83rem}
+    .nomina-row:last-child{border-bottom:none}
+    .nomina-total{font-weight:700;color:#1a3a2a;font-size:0.9rem;margin-top:8px}
+    .nomina-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
+
+    /* CONSUMOS */
+    tfoot tr{background:#f5f0e8;font-weight:700}
+    tfoot td{padding:11px 14px}
+  </style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <p>Cargando datos de Arroyohondo...</p>
+</div>
+
+<div id="app" style="display:none">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <span class="logo-horse">🐎</span>
+      <div>
+        <div class="logo-title">ARROYOHONDO</div>
+        <div class="logo-sub">Criadero</div>
+      </div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item active" onclick="showSection('dashboard')"><span class="icon">🏠</span>Dashboard</li>
+      <li class="nav-item" onclick="showSection('animales')"><span class="icon">🐴</span>Animales</li>
+      <li class="nav-item" onclick="showSection('saltos')"><span class="icon">💉</span>Venta Saltos</li>
+      <li class="nav-item" onclick="showSection('embriones')"><span class="icon">🧬</span>Venta Embriones</li>
+      <li class="nav-item" onclick="showSection('ferias')"><span class="icon">🏆</span>Record Ferias</li>
+      <li class="nav-item" onclick="showSection('nomina')"><span class="icon">👷</span>Nómina</li>
+      <li class="nav-item" onclick="showSection('consumos')"><span class="icon">🌾</span>Consumos</li>
+    </ul>
+  </nav>
+
+  <main id="main">
+    <div id="sec-dashboard" class="section active"></div>
+    <div id="sec-animales" class="section"></div>
+    <div id="sec-saltos" class="section"></div>
+    <div id="sec-embriones" class="section"></div>
+    <div id="sec-ferias" class="section"></div>
+    <div id="sec-nomina" class="section"></div>
+    <div id="sec-consumos" class="section"></div>
+  </main>
+</div>
+
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header"><span id="modal-title"></span><button onclick="closeModal()">✕</button></div>
+    <div id="modal-body" class="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="modalSave()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE ──────────────────────────────────────────
+const SUPABASE_URL = 'https://ntbltwivzoxdzyiaalbf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50Ymx0d2l2em94ZHp5aWFhbGJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTEzMzMsImV4cCI6MjA5NzM2NzMzM30.c1KC1f2cC35A851OVsS_upbck2YhgSECGoNFuYjZFUM';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── INITIAL SEED DATA ─────────────────────────────────
+const INITIAL_DATA = {
+  animales: [
+    {id:1,nombre:"Arroyohondo Orion De Potrero Chico",genero:"M",padre:"Encantado",madre:"Flor Del Vino",abm:"Vino Griego De Santa Maria",fecha_nac:"2023-07-29",pasta:"Asdesilla",montador:"Toto",propietario:"Juan / Victor",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:2,nombre:"Bruja De La Pispa",genero:"H",padre:"Cónsul De Gran Dinastía",madre:"Amapola De La Pispa",abm:"Privilegio Del Oasis",fecha_nac:"2008-12-30",pasta:"El Carmen",montador:"",propietario:"Finca",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:3,nombre:"Alhaja De Arroyohondo",genero:"H",padre:"Dulce Sueño F.C",madre:"Escultura",abm:"Extasis Eus",fecha_nac:"2011-04-23",pasta:"El Carmen",montador:"",propietario:"Finca",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:4,nombre:"Embajador De Arroyohondo (Capon)",genero:"M",padre:"Aaron F.C",madre:"Candela De Arroyohondo",abm:"Conde Del Viento",fecha_nac:"2016-06-21",pasta:"El Carmen",montador:"",propietario:"Finca",estado:"En Propiedad",andar:"P1",nota:""},
+    {id:5,nombre:"Ilusión De Arroyohondo",genero:"H",padre:"Prodigio De Maria Rosa",madre:"Quimera De Arroyohondo",abm:"Onix F.C",fecha_nac:"2018-08-29",pasta:"El Carmen",montador:"Darwin",propietario:"Finca",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:6,nombre:"Prueba De Fe",genero:"H",padre:"Barba Roja De La Tania",madre:"Violetera Imperial De Marcapaso",abm:"Imperial De Santa Gertrudis FC",fecha_nac:"2019-01-16",pasta:"El Carmen",montador:"",propietario:"Finca",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:7,nombre:"Canela De Arroyohondo",genero:"H",padre:"Elegido De La Virginia",madre:"Quimera De Arroyohondo",abm:"Onix F.C",fecha_nac:"2021-02-13",pasta:"El Carmen",montador:"Alveiro",propietario:"Victor",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:8,nombre:"Sinfonía De Arroyohondo",genero:"H",padre:"Picasso De La Ilusión",madre:"Alhaja De Arroyohondo",abm:"Dulce Sueño F.C",fecha_nac:"2022-11-21",pasta:"El Carmen",montador:"Adolfo",propietario:"Finca",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:9,nombre:"Arroyohondo Melodía DeVilla Sur Oeste",genero:"H",padre:"Picasso De La Ilusión",madre:"Flor Perfecta de paz",abm:"Firmamento de Agualinda",fecha_nac:"2023-09-22",pasta:"El Carmen",montador:"Darwin",propietario:"Juan / Victor",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:10,nombre:"Pancho de Arroyohondo",genero:"M",padre:"Bendecido De La Caprichosa",madre:"Duquesa De Arroyohondo",abm:"Aaron F.C",fecha_nac:"2024-01-06",pasta:"El Carmen",montador:"",propietario:"Victor",estado:"En Propiedad",andar:"P1",nota:""},
+    {id:11,nombre:"Predilecto De Arroyohondo",genero:"M",padre:"Rey De Reyes De La Gloria",madre:"Ilusion De Arroyohondo",abm:"Prodigio De Maria Rosa",fecha_nac:"2024-01-11",pasta:"El Carmen",montador:"Darwin",propietario:"Finca",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:12,nombre:"Dulcinea De Arroyohondo",genero:"H",padre:"Príncipe del Rey",madre:"Cayetana De Arroyohondo",abm:"Kain De Mi Capricho",fecha_nac:"2024-02-10",pasta:"El Carmen",montador:"Darwin",propietario:"Victor",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:13,nombre:"Arroyohondo El Socio de Potrerochico",genero:"M",padre:"Memorable De San Cayetano",madre:"Flor del vino",abm:"Vino Griego De Santa Maria",fecha_nac:"2024-03-03",pasta:"El Carmen",montador:"",propietario:"Gabriel Jaime Toro / Juan / Victor",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:14,nombre:"Retadora de Arroyohondo",genero:"H",padre:"Triunfador De La Ilusion",madre:"Ilusion De Arroyohondo",abm:"Prodigio De Maria Rosa",fecha_nac:"2024-03-13",pasta:"El Carmen",montador:"Darwin",propietario:"Finca",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:15,nombre:"Arroyohondo El Sueño De Potrerochico",genero:"M",padre:"Picasso De La Ilusión",madre:"Flor Del Campo",abm:"Corsario De Sibel",fecha_nac:"2026-01-09",pasta:"El Carmen",montador:"",propietario:"Juan / Victor",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:16,nombre:"Imperial de Arroyohondo",genero:"M",padre:"Pretendido De San Isidro",madre:"Prueba De Fe",abm:"Barba Roja De La Tania",fecha_nac:"2026-03-22",pasta:"El Carmen",montador:"",propietario:"Finca",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:17,nombre:"Magma De Arroyohondo",genero:"H",padre:"Kain De Mi Capricho",madre:"Quimera De Arroyohondo",abm:"Onix F.C",fecha_nac:"2021-05-23",pasta:"Pesebreras El Horizonte",montador:"Jose Abel Trujillo",propietario:"Finca",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:18,nombre:"Hidalgo De La Ilusión",genero:"M",padre:"Kain De Mi Capricho",madre:"Estampa De San Alejo",abm:"Elegido De La Virginia",fecha_nac:"2021-06-07",pasta:"Pesebreras El Horizonte",montador:"Jose Abel Trujillo",propietario:"Victor",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:19,nombre:"Senescal De Arroyohondo",genero:"M",padre:"Rey De Reyes De La Gloria",madre:"Quimera De Arroyohondo",abm:"Onix F.C",fecha_nac:"2023-05-14",pasta:"Pesebreras El Horizonte",montador:"Osman David",propietario:"Juan / Victor",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:20,nombre:"Electra de Arroyohondo",genero:"H",padre:"Triton De Montesa",madre:"Cayetana De Arroyohondo",abm:"Kain De Mi Capricho",fecha_nac:"2023-08-10",pasta:"Pesebreras El Horizonte",montador:"Jose Abel Trujillo",propietario:"Victor",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:21,nombre:"Místico De Arroyohondo",genero:"M",padre:"Victorioso",madre:"Ilusion De Arroyohondo",abm:"Prodigio De Maria Rosa",fecha_nac:"2023-01-21",pasta:"Rancho El Alamo",montador:"Jhony Alexander",propietario:"Finca",estado:"En Propiedad",andar:"P3",nota:"Se le pone a Simon en 100, si lo vende en menos es comision"},
+    {id:22,nombre:"Querendona De Arroyohondo",genero:"H",padre:"Encanto",madre:"Ilusion De Arroyohondo",abm:"Prodigio De Maria Rosa",fecha_nac:"2023-10-25",pasta:"Rancho El Alamo",montador:"Darwin",propietario:"Carlos",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:23,nombre:"Montana De Entrepenas",genero:"H",padre:"Shammy Shine",madre:"Chama",abm:"-",fecha_nac:"2024-06-12",pasta:"Tarso",montador:"",propietario:"Entrepenas",estado:"En Propiedad",andar:"APQH",nota:""},
+    {id:24,nombre:"Libertad de Arroyohondo",genero:"H",padre:"Barba Roja De La Tania",madre:"Alhaja De Arroyohondo",abm:"Dulce Sueño F.C",fecha_nac:"2024-08-08",pasta:"El Carmen",montador:"",propietario:"Finca",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:25,nombre:"Blondie Gun De Entrepenas",genero:"H",padre:"Billy Ruthland",madre:"Bonita",abm:"-",fecha_nac:"2024-08-15",pasta:"Tarso",montador:"",propietario:"Entrepenas",estado:"En Propiedad",andar:"APQH",nota:""},
+    {id:26,nombre:"Pregon de Arroyohondo",genero:"M",padre:"JMP Legendario Del Esmeraldal",madre:"Salome De La Alameda",abm:"Elegido De La Virginia",fecha_nac:"2024-08-29",pasta:"Tarso",montador:"",propietario:"Juan / Victor",estado:"En Propiedad",andar:"P1",nota:""},
+    {id:27,nombre:"Infanta de Arroyohondo",genero:"H",padre:"Rey Tayrona",madre:"Ilusion De Arroyohondo",abm:"Prodigio de Maria Rosa",fecha_nac:"2024-10-03",pasta:"Tarso",montador:"",propietario:"Juan / Victor",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:28,nombre:"Celia De Arroyohondo",genero:"H",padre:"Sonero De La Hacienda",madre:"Milagros De Arroyohondo",abm:"Memorable de San Cayetano",fecha_nac:"2023-11-07",pasta:"Las Hamacas",montador:"Adolfo",propietario:"Juan/Victor/Tato",estado:"Cedido",andar:"P3",nota:"Cedidas a Maxi y Eduardo"},
+    {id:29,nombre:"Liturgico De Arroyohondo",genero:"M",padre:"Bukele De Santa Isabel",madre:"Magma De Arroyohondo",abm:"Kain De Mi Capricho",fecha_nac:"2026-04-03",pasta:"El Carmen",montador:"",propietario:"Finca",estado:"En Propiedad",andar:"P3",nota:""},
+    {id:30,nombre:"Romancero de Arroyohondo",genero:"M",padre:"Amante Bandido",madre:"Sinfonía De Arroyohondo",abm:"Picasso De La Ilusion",fecha_nac:"2026-05-09",pasta:"El Carmen",montador:"",propietario:"Finca",estado:"En Propiedad",andar:"P4",nota:""},
+    {id:31,nombre:"Escultura",genero:"H",padre:"Extasis Eus",madre:"Plenaria De La Luisa",abm:"Jurista De La Luisa",fecha_nac:"2005-08-18",pasta:"Tarso",montador:"",propietario:"Carlos",estado:"Cedido",andar:"P4",nota:"Estan En el Coco"},
+    {id:32,nombre:"Delirio Oculto De Arroyohondo",genero:"M",padre:"Oculto De La Serrania",madre:"Escultura",abm:"Extasis Eus",fecha_nac:"2023-06-25",pasta:"",montador:"",propietario:"",estado:"Vendido",andar:"P4",nota:"Vendido a Tato 1/4 milla"},
+    {id:33,nombre:"Estoica De Arroyohondo",genero:"H",padre:"Prodigio De Maria Rosa",madre:"Excelsa De Arroyohondo",abm:"Kain De Mi Capricho",fecha_nac:"2022-07-07",pasta:"",montador:"",propietario:"",estado:"Vendido",andar:"P3",nota:"Vendido a Simón Yepes 21.07.2025"},
+    {id:34,nombre:"Silletera",genero:"H",padre:"Premio Mayor De San Marcos",madre:"Luz Aurora De yalconia",abm:"Aaron F.C",fecha_nac:"2022-08-05",pasta:"",montador:"",propietario:"",estado:"Vendido",andar:"P1",nota:"Vendido a Simón Yepes 21.07.2025"},
+    {id:35,nombre:"Encantado",genero:"M",padre:"Prodigioso Del Castel",madre:"Intriga De Arroyohondo",abm:"Renegado de Las Leyendas",fecha_nac:"2022-09-28",pasta:"",montador:"",propietario:"",estado:"Vendido",andar:"P3",nota:"Vendido a Simón Yepes 21.07.2025"},
+    {id:36,nombre:"Folclor De Jusama",genero:"M",padre:"Triton De Montesa",madre:"Testarrosa De Piramides",abm:"Tourbillon De Barcelona",fecha_nac:"2020-09-04",pasta:"",montador:"",propietario:"",estado:"Vendido",andar:"P3",nota:"Vendido en junio 2025 (Simón Yepes)"}
+  ],
+  saltos: [
+    {id:1,fecha:"2024-05-29",estado:"Nacido",cliente:"Tato Hernandez",documento:"",celular:"3155523250",correo:"",criadero:"CriaderoLasHamacas",ciudad:"Rionegro",caballo:"Folclor De Jusama",yegua:"",abm:"Onix (FC)",fecha_serv:"",fecha_nac:"",valor:0,enviado:"X",pegado:"X",nacido:"X",notas:"Fomento Equino"},
+    {id:2,fecha:"2024-05-29",estado:"Nacido",cliente:"Cristian Pelaez",documento:"1053808380",celular:"3113252985",correo:"",criadero:"Criadero El Cedral",ciudad:"Manizales",caballo:"Folclor De Jusama",yegua:"Coral Del Paraiso",abm:"Elegido De La Virginia",fecha_serv:"2024-06-19",fecha_nac:"2025-05-28",valor:0,enviado:"X",pegado:"X",nacido:"X",notas:"Fomento Equino, macho"},
+    {id:3,fecha:"2024-05-29",estado:"Nacido",cliente:"Jose Carlos Salgado",documento:"1098735439",celular:"",correo:"",criadero:"",ciudad:"",caballo:"Folclor De Jusama",yegua:"Veranda Del Diamante",abm:"Cacique De Las Leyendas",fecha_serv:"2024-06-28",fecha_nac:"2025-05-28",valor:0,enviado:"X",pegado:"X",nacido:"X",notas:"Fomento equino, hembra"},
+    {id:4,fecha:"2024-05-29",estado:"Nacido",cliente:"Luis Felipe Arango",documento:"",celular:"3154679164",correo:"",criadero:"Ganaderiaelindio",ciudad:"Porce",caballo:"Folclor De Jusama",yegua:"",abm:"",fecha_serv:"2024-06-11",fecha_nac:"2025-06-01",valor:0,enviado:"X",pegado:"X",nacido:"X",notas:"Fomento Equino"},
+    {id:5,fecha:"2024-05-29",estado:"Nacido",cliente:"Andres Marin",documento:"",celular:"3116186755",correo:"Johanamarinf@gmail.com",criadero:"",ciudad:"",caballo:"Folclor De Jusama",yegua:"Duquesa De Adn",abm:"Rey De Reyes De La Gloria",fecha_serv:"2024-06-28",fecha_nac:"2025-09-03",valor:500000,enviado:"x",pegado:"x",nacido:"x",notas:"Vendido, nacieron mellizas"},
+    {id:6,fecha:"2024-10-08",estado:"Nacido",cliente:"Diego Murillo",documento:"",celular:"",correo:"",criadero:"",ciudad:"Rionegro",caballo:"Folclor De Jusama",yegua:"Heredera de Tayrona",abm:"Constantino de San Isidro",fecha_serv:"2024-10-08",fecha_nac:"2025-09-08",valor:0,enviado:"X",pegado:"X",nacido:"X",notas:"Fomento equino, macho"},
+    {id:7,fecha:"2025-06-01",estado:"Confirmada",cliente:"Juan Diego Montoya",documento:"",celular:"",correo:"",criadero:"Criadero El vergel",ciudad:"",caballo:"Hidalgo De La Ilusion",yegua:"Madre del Sol de Villa Adriana",abm:"Hermano Sol de Villa Milena",fecha_serv:"2025-07-19",fecha_nac:"",valor:0,enviado:"X",pegado:"X",nacido:"-",notas:"Regalo amigo Yoyo"},
+    {id:8,fecha:"2025-05-22",estado:"Confirmada",cliente:"Juan Diego Gonzales",documento:"",celular:"",correo:"",criadero:"",ciudad:"",caballo:"Hidalgo De La Ilusion",yegua:"Leyenda de Onix de Villa Dina",abm:"Onix (FC)",fecha_serv:"2025-07-27",fecha_nac:"",valor:0,enviado:"X",pegado:"X",nacido:"-",notas:"Primer Envio"},
+    {id:9,fecha:"2025-09-11",estado:"Confirmada",cliente:"Juan Pablo Tobon",documento:"1152217515",celular:"3006611297",correo:"Juanpablotobong@hotmail.com",criadero:"",ciudad:"San Pedro De Los Milagros",caballo:"Hidalgo De La Ilusion",yegua:"Romantica Del Porvenir",abm:"Prodigio de Maria Rosa (FC)",fecha_serv:"2025-10-08",fecha_nac:"",valor:0,enviado:"X",pegado:"X",nacido:"-",notas:"Regalo amigo Juan P"},
+    {id:10,fecha:"2025-05-22",estado:"Confirmada",cliente:"Julian Cortes Barrios",documento:"14138767",celular:"",correo:"",criadero:"Criadero 4js",ciudad:"",caballo:"Hidalgo De La Ilusion",yegua:"Amapola de JM",abm:"Elegido de la Virginia",fecha_serv:"2025-11-15",fecha_nac:"",valor:0,enviado:"X",pegado:"X",nacido:"-",notas:""},
+    {id:11,fecha:"2025-05-22",estado:"Pendiente",cliente:"Juan Guillermo Angarita",documento:"",celular:"",correo:"",criadero:"",ciudad:"",caballo:"Hidalgo De La Ilusion",yegua:"Pantera Rosa De Los 3 Potrillos",abm:"Onix (FC)",fecha_serv:"",fecha_nac:"",valor:0,enviado:"-",pegado:"-",nacido:"-",notas:""},
+    {id:12,fecha:"2025-05-22",estado:"Pendiente",cliente:"Miguel Restrepo",documento:"",celular:"",correo:"",criadero:"",ciudad:"",caballo:"Hidalgo De La Ilusion",yegua:"Shaira Del Silencio",abm:"Artillero Del Vesubio",fecha_serv:"",fecha_nac:"",valor:0,enviado:"-",pegado:"-",nacido:"-",notas:""},
+    {id:13,fecha:"2025-05-22",estado:"Pendiente",cliente:"Juan Camilo Castrillon",documento:"",celular:"",correo:"",criadero:"",ciudad:"",caballo:"Hidalgo De La Ilusion",yegua:"Hechicera De La Tormenta",abm:"Elegido De La virginia",fecha_serv:"",fecha_nac:"",valor:0,enviado:"-",pegado:"-",nacido:"-",notas:""},
+    {id:14,fecha:"2025-05-22",estado:"Pendiente",cliente:"Carlos Fernando Galvis",documento:"",celular:"",correo:"",criadero:"Criadero El Portico",ciudad:"",caballo:"Hidalgo De La Ilusion",yegua:"Alianza De Gran Dinastia",abm:"Cacique Caramanta (FC)",fecha_serv:"",fecha_nac:"",valor:0,enviado:"-",pegado:"-",nacido:"-",notas:""},
+    {id:15,fecha:"2025-06-28",estado:"Pendiente",cliente:"Roger Márquez Ramos",documento:"10771329",celular:"3229215842",correo:"Criaderolosmarquez@gmail.com",criadero:"Criadero Los Marquez",ciudad:"Monteria",caballo:"Hidalgo De La Ilusion",yegua:"Polemica de la Estrella",abm:"Prodigioso del Castell de las F",fecha_serv:"",fecha_nac:"",valor:500000,enviado:"-",pegado:"-",nacido:"-",notas:"Promoción fomento"},
+    {id:16,fecha:"2025-09-09",estado:"Pendiente",cliente:"Rodrigo Martinez de los Rios",documento:"1020762502",celular:"3157120500",correo:"",criadero:"",ciudad:"",caballo:"Hidalgo De La Ilusion",yegua:"Gaonera de Quisquella",abm:"Prodigio de Maria Rosa (FC)",fecha_serv:"",fecha_nac:"",valor:700000,enviado:"-",pegado:"-",nacido:"-",notas:"Promo mes Sept"},
+    {id:17,fecha:"2025-10-01",estado:"Pendiente",cliente:"Gloria Maria Monje Pastrana",documento:"52053721",celular:"3176546066",correo:"",criadero:"",ciudad:"",caballo:"Hidalgo De La Ilusion",yegua:"Princesa de Poco a Poco",abm:"Prodigio de Maria Rosa (FC)",fecha_serv:"",fecha_nac:"",valor:700000,enviado:"-",pegado:"-",nacido:"-",notas:""}
+  ],
+  embriones: [
+    {id:1,fecha:"2024-05-22",estado:"Hecho",propietario:"Juan Ochoa",yegua:"Ilusion De Arroyohondo",caballo:"Kain De Mi Capricho",contacto:"Juan Ochoa",precio:15000000,recibido:15000000,restante:0,fecha_parto:""},
+    {id:2,fecha:"2024-10-10",estado:"Hecho",propietario:"Juan Ochoa",yegua:"Magma De Arroyohondo",caballo:"Rey De Reyes De La Gloria",contacto:"Juan Ochoa",precio:15000000,recibido:15000000,restante:0,fecha_parto:""},
+    {id:3,fecha:"2024-12-09",estado:"Hecho",propietario:"Manuel Turizo",yegua:"Magma De Arroyohondo",caballo:"Rey De Reyes De La Gloria",contacto:"-",precio:27000000,recibido:27000000,restante:0,fecha_parto:""},
+    {id:4,fecha:"2025-05-20",estado:"Hecho",propietario:"Juan Ochoa",yegua:"Magma De Arroyohondo",caballo:"Bukele De Santa Isabel",contacto:"-",precio:0,recibido:0,restante:0,fecha_parto:""},
+    {id:5,fecha:"",estado:"Pendiente",propietario:"Juan Sebastian (Horizontes)",yegua:"",caballo:"",contacto:"",precio:0,recibido:0,restante:0,fecha_parto:""},
+    {id:6,fecha:"",estado:"Pendiente",propietario:"-",yegua:"Magma De Arroyohondo",caballo:"Teutón del Trébol",contacto:"-",precio:0,recibido:0,restante:0,fecha_parto:""},
+    {id:7,fecha:"",estado:"Pendiente",propietario:"Juan Ochoa",yegua:"Canela De Arroyohondo",caballo:"Triton De Montesa",contacto:"Juan Ochoa",precio:0,recibido:0,restante:0,fecha_parto:""}
+  ],
+  nomina: [
+    {id:1,nombre:"Alveiro",salario_base:2200000,dias_laborados:30,aux_transporte:106454,total_devengado:2306454,salud:88000,pension:88000,total_deducciones:176000,neto_pagado:2482454},
+    {id:2,nombre:"Darwin",salario_base:1100000,dias_laborados:30,aux_transporte:106454,total_devengado:1206454,salud:44000,pension:44000,total_deducciones:88000,neto_pagado:1294454},
+    {id:3,nombre:"Arbey",salario_base:1800000,dias_laborados:30,aux_transporte:106454,total_devengado:1906454,salud:72000,pension:72000,total_deducciones:144000,neto_pagado:2050454}
+  ],
+  consumos: [
+    {id:1,propietario:"Finca",animal:"Bruja De La Pispa",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:307628.72,montado:"Si",costo_montador:565055.1,total_mes:872683.82},
+    {id:2,propietario:"Finca",animal:"Alhaja De Arroyohondo",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:307628.72,montado:"Si",costo_montador:565055.1,total_mes:872683.82},
+    {id:3,propietario:"Finca",animal:"Embajador De Arroyohondo",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:307628.72,montado:"Si",costo_montador:565055.1,total_mes:872683.82},
+    {id:4,propietario:"Finca",animal:"Ilusión De Arroyohondo",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:370077.47,montado:"Si",costo_montador:565055.1,total_mes:935132.57},
+    {id:5,propietario:"Finca",animal:"Prueba De Fe",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:370077.47,montado:"Si",costo_montador:565055.1,total_mes:935132.57},
+    {id:6,propietario:"Victor",animal:"Canela De Arroyohondo",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:370077.47,montado:"No",costo_montador:0,total_mes:370077.47},
+    {id:7,propietario:"Finca",animal:"Sinfonía De Arroyohondo",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:370077.47,montado:"Si",costo_montador:565055.1,total_mes:935132.57},
+    {id:8,propietario:"Juan / Victor",animal:"Melodía DeVilla Sur Oeste",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:370077.47,montado:"Si",costo_montador:565055.1,total_mes:935132.57},
+    {id:9,propietario:"Finca",animal:"Predilecto De Arroyohondo",conc1:"Cinta Azul Potros",conc2:"Heno",conc3:"Finca Sal",costo_mes:374946.03,montado:"No",costo_montador:0,total_mes:374946.03},
+    {id:10,propietario:"Victor",animal:"Dulcinea De Arroyohondo",conc1:"Cinta Azul Potros",conc2:"Heno",conc3:"Finca Sal",costo_mes:374946.03,montado:"No",costo_montador:0,total_mes:374946.03},
+    {id:11,propietario:"Finca",animal:"Retadora de Arroyohondo",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:370077.47,montado:"Si",costo_montador:565055.1,total_mes:935132.57},
+    {id:12,propietario:"Finca",animal:"Imperial de Arroyohondo",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:370077.47,montado:"No",costo_montador:0,total_mes:370077.47},
+    {id:13,propietario:"Finca",animal:"Liturgico De Arroyohondo",conc1:"Cinta Azul Adultos",conc2:"Heno",conc3:"Finca Sal",costo_mes:370077.47,montado:"Si",costo_montador:565055.1,total_mes:935132.57},
+    {id:14,propietario:"Finca",animal:"Romancero de Arroyohondo",conc1:"Cinta Azul Potros",conc2:"Heno",conc3:"Finca Sal",costo_mes:374946.03,montado:"No",costo_montador:0,total_mes:374946.03}
+  ],
+  ferias: [
+    {id:1,animal:"Quimera De Arroyohondo",feria:"Copa Antioquia",anio:2017,grado:"A",categoria:"36-48",posicion:"1",puntos:10,campeonato:""},
+    {id:2,animal:"Quimera De Arroyohondo",feria:"Expometropolitana 2017",anio:2017,grado:"B",categoria:"36-48",posicion:"2",puntos:4,campeonato:""},
+    {id:3,animal:"Quimera De Arroyohondo",feria:"Exporiente 2018",anio:2018,grado:"A",categoria:"36-48",posicion:"1",puntos:10,campeonato:""},
+    {id:4,animal:"Quimera De Arroyohondo",feria:"Exposicion Nacional Equina",anio:2018,grado:"A",categoria:"36-48",posicion:"3",puntos:8,campeonato:""},
+    {id:5,animal:"Quimera De Arroyohondo",feria:"Exposicion Equina Sincelejo",anio:2018,grado:"A",categoria:"48-60",posicion:"1",puntos:10,campeonato:"Campeonato"},
+    {id:6,animal:"Quimera De Arroyohondo",feria:"Expometropolitana 2018",anio:2018,grado:"B",categoria:"48-60",posicion:"3",puntos:3,campeonato:"Campeonato"},
+    {id:7,animal:"Quimera De Arroyohondo",feria:"Exporiente 2019",anio:2019,grado:"A",categoria:"48-60",posicion:"3",puntos:6,campeonato:""},
+    {id:8,animal:"Quimera De Arroyohondo",feria:"Exposicion Equina Sasaima",anio:2019,grado:"B",categoria:"60-78",posicion:"CR",puntos:8,campeonato:"Campeonato"},
+    {id:9,animal:"Quimera De Arroyohondo",feria:"Exposicion Equina La Virginia",anio:2020,grado:"B",categoria:"60-78",posicion:"CR",puntos:10,campeonato:"Campeonato"},
+    {id:10,animal:"Hidalgo De La Ilusion",feria:"Exporiente 2025",anio:2025,grado:"A",categoria:"36-48",posicion:"2",puntos:8,campeonato:""},
+    {id:11,animal:"Hidalgo De La Ilusion",feria:"Exposición Equina Manizales",anio:2025,grado:"A",categoria:"36-48",posicion:"1",puntos:10,campeonato:""},
+    {id:12,animal:"Hidalgo De La Ilusion",feria:"Exposición Equina Montería",anio:2025,grado:"B",categoria:"36-48",posicion:"CJ",puntos:10,campeonato:""},
+    {id:13,animal:"Hidalgo De La Ilusion",feria:"Exposición Equina Ciudad Bolivar",anio:2025,grado:"B",categoria:"36-48",posicion:"CJ",puntos:10,campeonato:""},
+    {id:14,animal:"Hidalgo De La Ilusion",feria:"Copa América Equina",anio:2025,grado:"AA",categoria:"36-48",posicion:"4",puntos:8,campeonato:""},
+    {id:15,animal:"Hidalgo De La Ilusion",feria:"Exposede 2025",anio:2025,grado:"B",categoria:"36-48",posicion:"1",puntos:5,campeonato:""},
+    {id:16,animal:"Hidalgo De La Ilusion",feria:"Exporionegro 2025",anio:2025,grado:"B",categoria:"48-60",posicion:"1",puntos:5,campeonato:"Campeonato"},
+    {id:17,animal:"Hidalgo De La Ilusion",feria:"Copa Aburrá Sur 2025",anio:2025,grado:"A",categoria:"48-60",posicion:"1",puntos:10,campeonato:""},
+    {id:18,animal:"Alhaja De Arroyohondo",feria:"Exponorte 2014",anio:2014,grado:"B",categoria:"36-48",posicion:"1",puntos:5,campeonato:""},
+    {id:19,animal:"Alhaja De Arroyohondo",feria:"Exposicion Equina Monteria 2015",anio:2015,grado:"B",categoria:"48-60",posicion:"CR",puntos:8,campeonato:"Campeonato"},
+    {id:20,animal:"Ilusion De Arroyohondo",feria:"Exposicion Equina Salamina 2022",anio:2022,grado:"B",categoria:"36-48",posicion:"CJ",puntos:10,campeonato:""},
+    {id:21,animal:"Ilusion De Arroyohondo",feria:"Exposicion Equina Libano 2022",anio:2022,grado:"A",categoria:"36-48",posicion:"CJ",puntos:10,campeonato:""},
+    {id:22,animal:"Ilusion De Arroyohondo",feria:"Exposicion Equina Libano 2023",anio:2023,grado:"B",categoria:"48-60",posicion:"1",puntos:5,campeonato:""},
+    {id:23,animal:"Canela De Arroyohondo",feria:"Exposicion equina Pensilvania 2025",anio:2025,grado:"B",categoria:"48-60",posicion:"4",puntos:2,campeonato:""}
+  ]
+};
+
+// ── IN-MEMORY CACHE ───────────────────────────────────
+let DB = { animales:[], saltos:[], embriones:[], nomina:[], consumos:[], ferias:[] };
+
+// ── HELPERS ──────────────────────────────────────────
+function formatPeso(n){
+  if(!n && n!==0) return '-';
+  return '$' + Number(n).toLocaleString('es-CO');
+}
+function calcMeses(fechaNac){
+  if(!fechaNac) return '-';
+  const hoy = new Date('2026-06-24');
+  const nac = new Date(fechaNac);
+  if(isNaN(nac)) return '-';
+  let m = (hoy.getFullYear()-nac.getFullYear())*12 + (hoy.getMonth()-nac.getMonth());
+  if(m < 0) m = 0;
+  const y = Math.floor(m/12);
+  const mo = m%12;
+  return y > 0 ? `${y}a ${mo}m` : `${mo}m`;
+}
+function estadoBadge(e){
+  const map = {
+    'En Propiedad':'badge-green','Vendido':'badge-red','Cedido':'badge-blue',
+    'Pendiente':'badge-orange','Confirmada':'badge-teal','Nacido':'badge-purple',
+    'Hecho':'badge-green','Enviado':'badge-gray'
+  };
+  return `<span class="badge ${map[e]||'badge-gray'}">${e}</span>`;
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── LOADING UI ────────────────────────────────────────
+function showLoading(){ document.getElementById('loading-screen').style.display='flex'; document.getElementById('app').style.display='none'; }
+function hideLoading(){ document.getElementById('loading-screen').style.display='none'; document.getElementById('app').style.display='flex'; }
+
+// ── SUPABASE SEED ─────────────────────────────────────
+async function seedIfEmpty(){
+  // Check if animales table has data
+  const {count} = await db.from('animales').select('*',{count:'exact',head:true});
+  if(count > 0) return; // Already seeded
+
+  // Seed all tables
+  const tables = ['animales','saltos','embriones','nomina','consumos','ferias'];
+  for(const t of tables){
+    const rows = INITIAL_DATA[t];
+    if(rows && rows.length){
+      const {error} = await db.from(t).insert(rows);
+      if(error) console.error('Seed error on',t,error);
+    }
+  }
+}
+
+// ── LOAD ALL DATA ─────────────────────────────────────
+async function loadAllData(){
+  const tables = ['animales','saltos','embriones','nomina','consumos','ferias'];
+  await Promise.all(tables.map(async t => {
+    const {data,error} = await db.from(t).select('*').order('id');
+    if(error){ console.error(t,error); return; }
+    DB[t] = data || [];
+  }));
+}
+
+// ── NAVIGATION ────────────────────────────────────────
+let currentSection = 'dashboard';
+function showSection(name){
+  currentSection = name;
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+name+"'")) n.classList.add('active');
+  });
+  const renders = {dashboard:renderDashboard,animales:renderAnimales,saltos:renderSaltos,embriones:renderEmbriones,ferias:renderFerias,nomina:renderNomina,consumos:renderConsumos};
+  if(renders[name]) renders[name]();
+}
+
+// ── MODAL ─────────────────────────────────────────────
+let _modalSaveFn = null;
+function openModal(title, bodyHTML, saveFn){
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHTML;
+  _modalSaveFn = saveFn;
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal(){ document.getElementById('modal').style.display = 'none'; _modalSaveFn = null; }
+function modalSave(){ if(_modalSaveFn) _modalSaveFn(); }
+document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+// ── DASHBOARD ─────────────────────────────────────────
+function renderDashboard(){
+  const el = document.getElementById('sec-dashboard');
+  const total = DB.animales.length;
+  const enProp = DB.animales.filter(a=>a.estado==='En Propiedad').length;
+  const machos = DB.animales.filter(a=>a.genero==='M'&&a.estado==='En Propiedad').length;
+  const hembras = DB.animales.filter(a=>a.genero==='H'&&a.estado==='En Propiedad').length;
+  const pendSaltos = DB.saltos.filter(s=>s.estado==='Pendiente').length;
+  const confirmSaltos = DB.saltos.filter(s=>s.estado==='Confirmada').length;
+  const pendEmb = DB.embriones.filter(e=>e.estado==='Pendiente').length;
+  const totalNomina = DB.nomina.reduce((a,n)=>a+n.neto_pagado,0);
+  const totalConsumo = DB.consumos.reduce((a,c)=>a+c.total_mes,0);
+
+  const recientes = DB.animales.slice().sort((a,b)=>new Date(b.fecha_nac)-new Date(a.fecha_nac)).slice(0,5);
+
+  el.innerHTML = `
+    <div class="page-header">
+      <h1>🏠 Dashboard</h1>
+      <p>Resumen general del criadero Arroyohondo</p>
+    </div>
+    <div class="card-grid">
+      <div class="stat-card green"><div class="stat-num">${enProp}</div><div class="stat-label">En Propiedad</div></div>
+      <div class="stat-card"><div class="stat-num">${machos}</div><div class="stat-label">Machos Activos</div></div>
+      <div class="stat-card blue"><div class="stat-num">${hembras}</div><div class="stat-label">Hembras Activas</div></div>
+      <div class="stat-card teal"><div class="stat-num">${confirmSaltos}</div><div class="stat-label">Saltos Confirmados</div></div>
+      <div class="stat-card red"><div class="stat-num">${pendSaltos}</div><div class="stat-label">Saltos Pendientes</div></div>
+      <div class="stat-card"><div class="stat-num">${pendEmb}</div><div class="stat-label">Embriones Pendientes</div></div>
+      <div class="stat-card green"><div class="stat-num">${formatPeso(totalNomina)}</div><div class="stat-label">Nómina Mensual</div></div>
+      <div class="stat-card"><div class="stat-num">${formatPeso(Math.round(totalConsumo))}</div><div class="stat-label">Consumo Mensual</div></div>
+    </div>
+    <div class="dash-section-title">Animales más recientes</div>
+    <div class="table-wrap recent-table">
+      <table>
+        <thead><tr><th>Nombre</th><th>Género</th><th>Fecha Nac.</th><th>Edad</th><th>Pasta</th><th>Estado</th></tr></thead>
+        <tbody>${recientes.map(a=>`
+          <tr>
+            <td><strong>${esc(a.nombre)}</strong></td>
+            <td>${a.genero==='M'?'♂ Macho':'♀ Hembra'}</td>
+            <td>${a.fecha_nac||'-'}</td>
+            <td>${calcMeses(a.fecha_nac)}</td>
+            <td>${esc(a.pasta)||'-'}</td>
+            <td>${estadoBadge(a.estado)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="dash-section-title">Saltos recientes</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cliente</th><th>Caballo</th><th>Yegua</th><th>Estado</th><th>Valor</th></tr></thead>
+        <tbody>${DB.saltos.slice(-5).reverse().map(s=>`
+          <tr>
+            <td>${esc(s.cliente)}</td>
+            <td>${esc(s.caballo)}</td>
+            <td>${esc(s.yegua)||'-'}</td>
+            <td>${estadoBadge(s.estado)}</td>
+            <td>${s.valor?formatPeso(s.valor):'-'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ── ANIMALES ──────────────────────────────────────────
+function renderAnimales(){
+  const el = document.getElementById('sec-animales');
+  el.innerHTML = `
+    <div class="page-header">
+      <h1>🐴 Animales</h1>
+      <p>Inventario completo del criadero</p>
+    </div>
+    <div class="toolbar">
+      <input type="text" id="anim-search" placeholder="Buscar nombre..." oninput="filterAnimales()">
+      <select id="anim-estado" onchange="filterAnimales()">
+        <option value="">Todos los estados</option>
+        <option>En Propiedad</option><option>Vendido</option><option>Cedido</option>
+      </select>
+      <select id="anim-genero" onchange="filterAnimales()">
+        <option value="">Ambos géneros</option>
+        <option value="M">Machos</option><option value="H">Hembras</option>
+      </select>
+      <select id="anim-pasta" onchange="filterAnimales()">
+        <option value="">Todas las pastas</option>
+        ${[...new Set(DB.animales.map(a=>a.pasta).filter(Boolean))].sort().map(p=>`<option>${esc(p)}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary" onclick="addAnimal()">+ Agregar Animal</button>
+    </div>
+    <div class="table-wrap">
+      <table id="anim-table">
+        <thead><tr>
+          <th>#</th><th>Nombre</th><th>G</th><th>Padre</th><th>Madre</th><th>ABM</th>
+          <th>Fecha Nac.</th><th>Edad</th><th>Andar</th><th>Pasta</th><th>Montador</th>
+          <th>Propietario</th><th>Estado</th><th>Nota</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="anim-tbody"></tbody>
+      </table>
+    </div>`;
+  filterAnimales();
+}
+
+function filterAnimales(){
+  const search = (document.getElementById('anim-search')||{}).value?.toLowerCase()||'';
+  const estado = (document.getElementById('anim-estado')||{}).value||'';
+  const genero = (document.getElementById('anim-genero')||{}).value||'';
+  const pasta  = (document.getElementById('anim-pasta')||{}).value||'';
+  const rows = DB.animales.filter(a=>{
+    if(estado && a.estado!==estado) return false;
+    if(genero && a.genero!==genero) return false;
+    if(pasta  && a.pasta!==pasta)   return false;
+    if(search && !a.nombre.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const tbody = document.getElementById('anim-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = rows.map(a=>`
+    <tr>
+      <td>${a.id}</td>
+      <td><strong>${esc(a.nombre)}</strong></td>
+      <td style="text-align:center">${a.genero==='M'?'♂':'♀'}</td>
+      <td>${esc(a.padre)||'-'}</td>
+      <td>${esc(a.madre)||'-'}</td>
+      <td>${esc(a.abm)||'-'}</td>
+      <td>${a.fecha_nac||'-'}</td>
+      <td>${calcMeses(a.fecha_nac)}</td>
+      <td><strong>${esc(a.andar)}</strong></td>
+      <td>${esc(a.pasta)||'-'}</td>
+      <td>${esc(a.montador)||'-'}</td>
+      <td>${esc(a.propietario)||'-'}</td>
+      <td>${estadoBadge(a.estado)}</td>
+      <td style="max-width:180px;white-space:normal;font-size:0.78rem">${esc(a.nota)||'-'}</td>
+      <td class="actions">
+        <button class="btn btn-sm btn-edit" onclick="editAnimal(${a.id})">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteAnimal(${a.id})">Borrar</button>
+      </td>
+    </tr>`).join('');
+}
+
+function animalForm(a={}){
+  return `<div class="form-grid">
+    <div class="form-group form-full"><label>Nombre</label><input id="f-nombre" value="${esc(a.nombre||'')}"></div>
+    <div class="form-group"><label>Género</label><select id="f-genero"><option value="M" ${a.genero==='M'?'selected':''}>Macho</option><option value="H" ${a.genero==='H'?'selected':''}>Hembra</option></select></div>
+    <div class="form-group"><label>Fecha Nac.</label><input type="date" id="f-fecha_nac" value="${esc(a.fecha_nac||'')}"></div>
+    <div class="form-group"><label>Padre</label><input id="f-padre" value="${esc(a.padre||'')}"></div>
+    <div class="form-group"><label>Madre</label><input id="f-madre" value="${esc(a.madre||'')}"></div>
+    <div class="form-group form-full"><label>ABM</label><input id="f-abm" value="${esc(a.abm||'')}"></div>
+    <div class="form-group"><label>Pasta</label><input id="f-pasta" value="${esc(a.pasta||'')}"></div>
+    <div class="form-group"><label>Montador</label><input id="f-montador" value="${esc(a.montador||'')}"></div>
+    <div class="form-group"><label>Propietario</label><input id="f-propietario" value="${esc(a.propietario||'')}"></div>
+    <div class="form-group"><label>Estado</label><select id="f-estado">
+      ${['En Propiedad','Vendido','Cedido'].map(s=>`<option ${a.estado===s?'selected':''}>${s}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label>Andar</label><input id="f-andar" value="${esc(a.andar||'')}"></div>
+    <div class="form-group form-full"><label>Nota</label><textarea id="f-nota">${esc(a.nota||'')}</textarea></div>
+  </div>`;
+}
+function getAnimalFormData(){
+  return {
+    nombre: document.getElementById('f-nombre').value,
+    genero: document.getElementById('f-genero').value,
+    fecha_nac: document.getElementById('f-fecha_nac').value,
+    padre: document.getElementById('f-padre').value,
+    madre: document.getElementById('f-madre').value,
+    abm: document.getElementById('f-abm').value,
+    pasta: document.getElementById('f-pasta').value,
+    montador: document.getElementById('f-montador').value,
+    propietario: document.getElementById('f-propietario').value,
+    estado: document.getElementById('f-estado').value,
+    andar: document.getElementById('f-andar').value,
+    nota: document.getElementById('f-nota').value
+  };
+}
+async function addAnimal(){
+  openModal('Agregar Animal', animalForm(), async ()=>{
+    const d = getAnimalFormData();
+    if(!d.nombre){alert('El nombre es requerido');return;}
+    const {data,error} = await db.from('animales').insert([d]).select();
+    if(error){alert('Error: '+error.message);return;}
+    DB.animales.push(data[0]);
+    closeModal(); filterAnimales(); renderDashboard();
+  });
+}
+async function editAnimal(id){
+  const a = DB.animales.find(x=>x.id===id);
+  if(!a) return;
+  openModal('Editar Animal', animalForm(a), async ()=>{
+    const d = getAnimalFormData();
+    if(!d.nombre){alert('El nombre es requerido');return;}
+    const {error} = await db.from('animales').update(d).eq('id',id);
+    if(error){alert('Error: '+error.message);return;}
+    Object.assign(a, d);
+    closeModal(); filterAnimales();
+  });
+}
+async function deleteAnimal(id){
+  if(!confirm('¿Eliminar este animal?')) return;
+  const {error} = await db.from('animales').delete().eq('id',id);
+  if(error){alert('Error: '+error.message);return;}
+  DB.animales = DB.animales.filter(x=>x.id!==id);
+  filterAnimales();
+}
+
+// ── SALTOS ────────────────────────────────────────────
+function renderSaltos(){
+  const el = document.getElementById('sec-saltos');
+  const caballos = [...new Set(DB.saltos.map(s=>s.caballo).filter(Boolean))].sort();
+  el.innerHTML = `
+    <div class="page-header">
+      <h1>💉 Venta de Saltos</h1>
+      <p>Registro de servicios de monta</p>
+    </div>
+    <div class="toolbar">
+      <input type="text" id="sal-search" placeholder="Buscar cliente o yegua..." oninput="filterSaltos()">
+      <select id="sal-estado" onchange="filterSaltos()">
+        <option value="">Todos los estados</option>
+        <option>Pendiente</option><option>Confirmada</option><option>Nacido</option>
+      </select>
+      <select id="sal-caballo" onchange="filterSaltos()">
+        <option value="">Todos los caballos</option>
+        ${caballos.map(c=>`<option>${esc(c)}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary" onclick="addSalto()">+ Agregar Salto</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Estado</th><th>Cliente</th><th>Celular</th><th>Criadero</th>
+          <th>Caballo</th><th>Yegua</th><th>ABM</th><th>F.Servicio</th><th>F.Nacimiento</th>
+          <th>Valor</th><th>Env</th><th>Peg</th><th>Nac</th><th>Notas</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="sal-tbody"></tbody>
+      </table>
+    </div>`;
+  filterSaltos();
+}
+
+function filterSaltos(){
+  const search = (document.getElementById('sal-search')||{}).value?.toLowerCase()||'';
+  const estado = (document.getElementById('sal-estado')||{}).value||'';
+  const caballo= (document.getElementById('sal-caballo')||{}).value||'';
+  const rows = DB.saltos.filter(s=>{
+    if(estado  && s.estado!==estado)  return false;
+    if(caballo && s.caballo!==caballo) return false;
+    if(search && !s.cliente.toLowerCase().includes(search) && !(s.yegua||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const tbody = document.getElementById('sal-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = rows.map(s=>`
+    <tr>
+      <td>${s.fecha||'-'}</td>
+      <td>${estadoBadge(s.estado)}</td>
+      <td><strong>${esc(s.cliente)}</strong></td>
+      <td>${esc(s.celular)||'-'}</td>
+      <td>${esc(s.criadero)||'-'}</td>
+      <td>${esc(s.caballo)||'-'}</td>
+      <td>${esc(s.yegua)||'-'}</td>
+      <td>${esc(s.abm)||'-'}</td>
+      <td>${s.fecha_serv||'-'}</td>
+      <td>${s.fecha_nac||'-'}</td>
+      <td>${s.valor?formatPeso(s.valor):'-'}</td>
+      <td style="text-align:center">${s.enviado||'-'}</td>
+      <td style="text-align:center">${s.pegado||'-'}</td>
+      <td style="text-align:center">${s.nacido||'-'}</td>
+      <td style="max-width:160px;white-space:normal;font-size:0.78rem">${esc(s.notas)||'-'}</td>
+      <td class="actions">
+        <button class="btn btn-sm btn-edit" onclick="editSalto(${s.id})">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSalto(${s.id})">Borrar</button>
+      </td>
+    </tr>`).join('');
+}
+
+function saltoForm(s={}){
+  const estados = ['Pendiente','Confirmada','Nacido'];
+  return `<div class="form-grid">
+    <div class="form-group"><label>Fecha</label><input type="date" id="f-fecha" value="${esc(s.fecha||'')}"></div>
+    <div class="form-group"><label>Estado</label><select id="f-estado">${estados.map(e=>`<option ${s.estado===e?'selected':''}>${e}</option>`).join('')}</select></div>
+    <div class="form-group"><label>Cliente</label><input id="f-cliente" value="${esc(s.cliente||'')}"></div>
+    <div class="form-group"><label>Documento</label><input id="f-documento" value="${esc(s.documento||'')}"></div>
+    <div class="form-group"><label>Celular</label><input id="f-celular" value="${esc(s.celular||'')}"></div>
+    <div class="form-group"><label>Correo</label><input id="f-correo" value="${esc(s.correo||'')}"></div>
+    <div class="form-group"><label>Criadero</label><input id="f-criadero" value="${esc(s.criadero||'')}"></div>
+    <div class="form-group"><label>Ciudad</label><input id="f-ciudad" value="${esc(s.ciudad||'')}"></div>
+    <div class="form-group"><label>Caballo</label><input id="f-caballo" value="${esc(s.caballo||'')}"></div>
+    <div class="form-group"><label>Yegua</label><input id="f-yegua" value="${esc(s.yegua||'')}"></div>
+    <div class="form-group"><label>ABM</label><input id="f-abm" value="${esc(s.abm||'')}"></div>
+    <div class="form-group"><label>Valor</label><input type="number" id="f-valor" value="${s.valor||0}"></div>
+    <div class="form-group"><label>Fecha Servicio</label><input type="date" id="f-fecha_serv" value="${esc(s.fecha_serv||'')}"></div>
+    <div class="form-group"><label>Fecha Nacimiento</label><input type="date" id="f-fecha_nac" value="${esc(s.fecha_nac||'')}"></div>
+    <div class="form-group"><label>Enviado</label><input id="f-enviado" value="${esc(s.enviado||'')}"></div>
+    <div class="form-group"><label>Pegado</label><input id="f-pegado" value="${esc(s.pegado||'')}"></div>
+    <div class="form-group"><label>Nacido</label><input id="f-nacido" value="${esc(s.nacido||'')}"></div>
+    <div class="form-group form-full"><label>Notas</label><textarea id="f-notas">${esc(s.notas||'')}</textarea></div>
+  </div>`;
+}
+function getSaltoFormData(){
+  return {
+    fecha:document.getElementById('f-fecha').value,
+    estado:document.getElementById('f-estado').value,
+    cliente:document.getElementById('f-cliente').value,
+    documento:document.getElementById('f-documento').value,
+    celular:document.getElementById('f-celular').value,
+    correo:document.getElementById('f-correo').value,
+    criadero:document.getElementById('f-criadero').value,
+    ciudad:document.getElementById('f-ciudad').value,
+    caballo:document.getElementById('f-caballo').value,
+    yegua:document.getElementById('f-yegua').value,
+    abm:document.getElementById('f-abm').value,
+    valor:Number(document.getElementById('f-valor').value)||0,
+    fecha_serv:document.getElementById('f-fecha_serv').value,
+    fecha_nac:document.getElementById('f-fecha_nac').value,
+    enviado:document.getElementById('f-enviado').value,
+    pegado:document.getElementById('f-pegado').value,
+    nacido:document.getElementById('f-nacido').value,
+    notas:document.getElementById('f-notas').value
+  };
+}
+async function addSalto(){
+  openModal('Agregar Salto', saltoForm(), async ()=>{
+    const d = getSaltoFormData();
+    if(!d.cliente){alert('El cliente es requerido');return;}
+    const {data,error} = await db.from('saltos').insert([d]).select();
+    if(error){alert('Error: '+error.message);return;}
+    DB.saltos.push(data[0]);
+    closeModal(); filterSaltos();
+  });
+}
+async function editSalto(id){
+  const s = DB.saltos.find(x=>x.id===id);
+  if(!s) return;
+  openModal('Editar Salto', saltoForm(s), async ()=>{
+    const d = getSaltoFormData();
+    const {error} = await db.from('saltos').update(d).eq('id',id);
+    if(error){alert('Error: '+error.message);return;}
+    Object.assign(s, d);
+    closeModal(); filterSaltos();
+  });
+}
+async function deleteSalto(id){
+  if(!confirm('¿Eliminar este registro?')) return;
+  const {error} = await db.from('saltos').delete().eq('id',id);
+  if(error){alert('Error: '+error.message);return;}
+  DB.saltos = DB.saltos.filter(x=>x.id!==id);
+  filterSaltos();
+}
+
+// ── EMBRIONES ─────────────────────────────────────────
+function renderEmbriones(){
+  const el = document.getElementById('sec-embriones');
+  el.innerHTML = `
+    <div class="page-header">
+      <h1>🧬 Venta de Embriones</h1>
+      <p>Registro de transferencias de embriones</p>
+    </div>
+    <div class="toolbar">
+      <select id="emb-estado" onchange="filterEmbriones()">
+        <option value="">Todos</option><option>Hecho</option><option>Pendiente</option>
+      </select>
+      <button class="btn btn-primary" onclick="addEmbrion()">+ Agregar Embrión</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Estado</th><th>Propietario</th><th>Yegua</th><th>Caballo</th>
+          <th>Contacto</th><th>Precio</th><th>Recibido</th><th>Restante</th><th>Fecha Parto</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="emb-tbody"></tbody>
+      </table>
+    </div>`;
+  filterEmbriones();
+}
+function filterEmbriones(){
+  const estado = (document.getElementById('emb-estado')||{}).value||'';
+  const rows = estado ? DB.embriones.filter(e=>e.estado===estado) : DB.embriones;
+  const tbody = document.getElementById('emb-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = rows.map(e=>`
+    <tr>
+      <td>${e.fecha||'-'}</td>
+      <td>${estadoBadge(e.estado)}</td>
+      <td><strong>${esc(e.propietario)}</strong></td>
+      <td>${esc(e.yegua)||'-'}</td>
+      <td>${esc(e.caballo)||'-'}</td>
+      <td>${esc(e.contacto)||'-'}</td>
+      <td>${e.precio?formatPeso(e.precio):'-'}</td>
+      <td>${e.recibido?formatPeso(e.recibido):'-'}</td>
+      <td>${e.restante?formatPeso(e.restante):'-'}</td>
+      <td>${e.fecha_parto||'-'}</td>
+      <td class="actions">
+        <button class="btn btn-sm btn-edit" onclick="editEmbrion(${e.id})">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteEmbrion(${e.id})">Borrar</button>
+      </td>
+    </tr>`).join('');
+}
+function embrionForm(e={}){
+  return `<div class="form-grid">
+    <div class="form-group"><label>Fecha</label><input type="date" id="f-fecha" value="${esc(e.fecha||'')}"></div>
+    <div class="form-group"><label>Estado</label><select id="f-estado"><option ${e.estado==='Hecho'?'selected':''}>Hecho</option><option ${e.estado==='Pendiente'?'selected':''}>Pendiente</option></select></div>
+    <div class="form-group"><label>Propietario</label><input id="f-propietario" value="${esc(e.propietario||'')}"></div>
+    <div class="form-group"><label>Contacto</label><input id="f-contacto" value="${esc(e.contacto||'')}"></div>
+    <div class="form-group"><label>Yegua</label><input id="f-yegua" value="${esc(e.yegua||'')}"></div>
+    <div class="form-group"><label>Caballo</label><input id="f-caballo" value="${esc(e.caballo||'')}"></div>
+    <div class="form-group"><label>Precio</label><input type="number" id="f-precio" value="${e.precio||0}"></div>
+    <div class="form-group"><label>Recibido</label><input type="number" id="f-recibido" value="${e.recibido||0}"></div>
+    <div class="form-group"><label>Restante</label><input type="number" id="f-restante" value="${e.restante||0}"></div>
+    <div class="form-group"><label>Fecha Parto</label><input type="date" id="f-fecha_parto" value="${esc(e.fecha_parto||'')}"></div>
+  </div>`;
+}
+function getEmbrionFormData(){
+  return {
+    fecha:document.getElementById('f-fecha').value,
+    estado:document.getElementById('f-estado').value,
+    propietario:document.getElementById('f-propietario').value,
+    contacto:document.getElementById('f-contacto').value,
+    yegua:document.getElementById('f-yegua').value,
+    caballo:document.getElementById('f-caballo').value,
+    precio:Number(document.getElementById('f-precio').value)||0,
+    recibido:Number(document.getElementById('f-recibido').value)||0,
+    restante:Number(document.getElementById('f-restante').value)||0,
+    fecha_parto:document.getElementById('f-fecha_parto').value
+  };
+}
+async function addEmbrion(){
+  openModal('Agregar Embrión', embrionForm(), async ()=>{
+    const d = getEmbrionFormData();
+    const {data,error} = await db.from('embriones').insert([d]).select();
+    if(error){alert('Error: '+error.message);return;}
+    DB.embriones.push(data[0]);
+    closeModal(); filterEmbriones();
+  });
+}
+async function editEmbrion(id){
+  const e = DB.embriones.find(x=>x.id===id);
+  if(!e) return;
+  openModal('Editar Embrión', embrionForm(e), async ()=>{
+    const d = getEmbrionFormData();
+    const {error} = await db.from('embriones').update(d).eq('id',id);
+    if(error){alert('Error: '+error.message);return;}
+    Object.assign(e, d);
+    closeModal(); filterEmbriones();
+  });
+}
+async function deleteEmbrion(id){
+  if(!confirm('¿Eliminar este registro?')) return;
+  const {error} = await db.from('embriones').delete().eq('id',id);
+  if(error){alert('Error: '+error.message);return;}
+  DB.embriones = DB.embriones.filter(x=>x.id!==id);
+  filterEmbriones();
+}
+
+// ── FERIAS ────────────────────────────────────────────
+function renderFerias(){
+  const el = document.getElementById('sec-ferias');
+  const animales = [...new Set(DB.ferias.map(f=>f.animal))].sort();
+  el.innerHTML = `
+    <div class="page-header">
+      <h1>🏆 Record de Ferias</h1>
+      <p>Historial de participaciones en exposiciones ecuestres</p>
+    </div>
+    <div class="toolbar">
+      <select id="fer-animal" onchange="filterFerias()">
+        <option value="">Todos los animales</option>
+        ${animales.map(a=>`<option>${esc(a)}</option>`).join('')}
+      </select>
+      <input type="text" id="fer-search" placeholder="Buscar feria..." oninput="filterFerias()">
+      <button class="btn btn-primary" onclick="addFeria()">+ Agregar Registro</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Animal</th><th>Feria</th><th>Año</th><th>Grado</th><th>Categoría</th>
+          <th>Posición</th><th>Puntos</th><th>Campeonato</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="fer-tbody"></tbody>
+      </table>
+    </div>`;
+  filterFerias();
+}
+function filterFerias(){
+  const animal = (document.getElementById('fer-animal')||{}).value||'';
+  const search = (document.getElementById('fer-search')||{}).value?.toLowerCase()||'';
+  const rows = DB.ferias.filter(f=>{
+    if(animal && f.animal!==animal) return false;
+    if(search && !f.feria.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const tbody = document.getElementById('fer-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = rows.map(f=>`
+    <tr>
+      <td><strong>${esc(f.animal)}</strong></td>
+      <td>${esc(f.feria)}</td>
+      <td>${f.anio}</td>
+      <td><span class="badge badge-blue">${esc(f.grado)}</span></td>
+      <td>${esc(f.categoria)}</td>
+      <td><strong class="trophy">${esc(f.posicion)}</strong></td>
+      <td>${f.puntos}</td>
+      <td>${f.campeonato?`<span class="badge badge-purple">${esc(f.campeonato)}</span>`:'-'}</td>
+      <td class="actions">
+        <button class="btn btn-sm btn-edit" onclick="editFeria(${f.id})">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteFeria(${f.id})">Borrar</button>
+      </td>
+    </tr>`).join('');
+}
+function feriaForm(f={}){
+  return `<div class="form-grid">
+    <div class="form-group form-full"><label>Animal</label><input id="f-animal" value="${esc(f.animal||'')}"></div>
+    <div class="form-group form-full"><label>Feria</label><input id="f-feria" value="${esc(f.feria||'')}"></div>
+    <div class="form-group"><label>Año</label><input type="number" id="f-anio" value="${f.anio||new Date().getFullYear()}"></div>
+    <div class="form-group"><label>Grado</label><input id="f-grado" value="${esc(f.grado||'')}"></div>
+    <div class="form-group"><label>Categoría</label><input id="f-categoria" value="${esc(f.categoria||'')}"></div>
+    <div class="form-group"><label>Posición</label><input id="f-posicion" value="${esc(f.posicion||'')}"></div>
+    <div class="form-group"><label>Puntos</label><input type="number" id="f-puntos" value="${f.puntos||0}"></div>
+    <div class="form-group"><label>Campeonato</label><input id="f-campeonato" value="${esc(f.campeonato||'')}"></div>
+  </div>`;
+}
+function getFeriaFormData(){
+  return {
+    animal:document.getElementById('f-animal').value,
+    feria:document.getElementById('f-feria').value,
+    anio:Number(document.getElementById('f-anio').value),
+    grado:document.getElementById('f-grado').value,
+    categoria:document.getElementById('f-categoria').value,
+    posicion:document.getElementById('f-posicion').value,
+    puntos:Number(document.getElementById('f-puntos').value)||0,
+    campeonato:document.getElementById('f-campeonato').value
+  };
+}
+async function addFeria(){
+  openModal('Agregar Registro de Feria', feriaForm(), async ()=>{
+    const d = getFeriaFormData();
+    if(!d.animal||!d.feria){alert('Animal y feria son requeridos');return;}
+    const {data,error} = await db.from('ferias').insert([d]).select();
+    if(error){alert('Error: '+error.message);return;}
+    DB.ferias.push(data[0]);
+    closeModal(); filterFerias();
+  });
+}
+async function editFeria(id){
+  const f = DB.ferias.find(x=>x.id===id);
+  if(!f) return;
+  openModal('Editar Registro de Feria', feriaForm(f), async ()=>{
+    const d = getFeriaFormData();
+    const {error} = await db.from('ferias').update(d).eq('id',id);
+    if(error){alert('Error: '+error.message);return;}
+    Object.assign(f, d);
+    closeModal(); filterFerias();
+  });
+}
+async function deleteFeria(id){
+  if(!confirm('¿Eliminar este registro?')) return;
+  const {error} = await db.from('ferias').delete().eq('id',id);
+  if(error){alert('Error: '+error.message);return;}
+  DB.ferias = DB.ferias.filter(x=>x.id!==id);
+  filterFerias();
+}
+
+// ── NÓMINA ────────────────────────────────────────────
+function renderNomina(){
+  const el = document.getElementById('sec-nomina');
+  const totalNeto = DB.nomina.reduce((a,n)=>a+n.neto_pagado,0);
+  el.innerHTML = `
+    <div class="page-header">
+      <h1>👷 Nómina</h1>
+      <p>Liquidación de personal del criadero</p>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="addNomina()">+ Agregar Empleado</button>
+      <span style="margin-left:auto;font-weight:600;color:#1a3a2a">Total nómina: ${formatPeso(totalNeto)}</span>
+    </div>
+    <div class="nomina-grid" id="nomina-grid"></div>`;
+  renderNominaCards();
+}
+function renderNominaCards(){
+  const grid = document.getElementById('nomina-grid');
+  if(!grid) return;
+  grid.innerHTML = DB.nomina.map(n=>`
+    <div class="nomina-card">
+      <div class="nomina-name">${esc(n.nombre)}</div>
+      <div class="nomina-row"><span>Salario Base</span><span>${formatPeso(n.salario_base)}</span></div>
+      <div class="nomina-row"><span>Días Laborados</span><span>${n.dias_laborados}</span></div>
+      <div class="nomina-row"><span>Aux. Transporte</span><span>${formatPeso(n.aux_transporte)}</span></div>
+      <div class="nomina-row"><span>Total Devengado</span><span>${formatPeso(n.total_devengado)}</span></div>
+      <div class="nomina-row"><span>Salud (4%)</span><span>- ${formatPeso(n.salud)}</span></div>
+      <div class="nomina-row"><span>Pensión (4%)</span><span>- ${formatPeso(n.pension)}</span></div>
+      <div class="nomina-row"><span>Total Deducciones</span><span>- ${formatPeso(n.total_deducciones)}</span></div>
+      <div class="nomina-row nomina-total"><span>Neto a Pagar</span><span style="color:#2d5a3d">${formatPeso(n.neto_pagado)}</span></div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-sm btn-edit" onclick="editNomina(${n.id})">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteNomina(${n.id})">Borrar</button>
+      </div>
+    </div>`).join('');
+}
+function nominaForm(n={}){
+  return `<div class="form-grid">
+    <div class="form-group form-full"><label>Nombre</label><input id="f-nombre" value="${esc(n.nombre||'')}"></div>
+    <div class="form-group"><label>Salario Base</label><input type="number" id="f-salario_base" value="${n.salario_base||0}"></div>
+    <div class="form-group"><label>Días Laborados</label><input type="number" id="f-dias_laborados" value="${n.dias_laborados||30}"></div>
+    <div class="form-group"><label>Aux. Transporte</label><input type="number" id="f-aux_transporte" value="${n.aux_transporte||106454}"></div>
+    <div class="form-group"><label>Total Devengado</label><input type="number" id="f-total_devengado" value="${n.total_devengado||0}"></div>
+    <div class="form-group"><label>Salud</label><input type="number" id="f-salud" value="${n.salud||0}"></div>
+    <div class="form-group"><label>Pensión</label><input type="number" id="f-pension" value="${n.pension||0}"></div>
+    <div class="form-group"><label>Total Deducciones</label><input type="number" id="f-total_deducciones" value="${n.total_deducciones||0}"></div>
+    <div class="form-group"><label>Neto Pagado</label><input type="number" id="f-neto_pagado" value="${n.neto_pagado||0}"></div>
+  </div>`;
+}
+function getNominaFormData(){
+  return {
+    nombre:document.getElementById('f-nombre').value,
+    salario_base:Number(document.getElementById('f-salario_base').value)||0,
+    dias_laborados:Number(document.getElementById('f-dias_laborados').value)||0,
+    aux_transporte:Number(document.getElementById('f-aux_transporte').value)||0,
+    total_devengado:Number(document.getElementById('f-total_devengado').value)||0,
+    salud:Number(document.getElementById('f-salud').value)||0,
+    pension:Number(document.getElementById('f-pension').value)||0,
+    total_deducciones:Number(document.getElementById('f-total_deducciones').value)||0,
+    neto_pagado:Number(document.getElementById('f-neto_pagado').value)||0
+  };
+}
+async function addNomina(){
+  openModal('Agregar Empleado', nominaForm(), async ()=>{
+    const d = getNominaFormData();
+    if(!d.nombre){alert('El nombre es requerido');return;}
+    const {data,error} = await db.from('nomina').insert([d]).select();
+    if(error){alert('Error: '+error.message);return;}
+    DB.nomina.push(data[0]);
+    closeModal(); renderNomina();
+  });
+}
+async function editNomina(id){
+  const n = DB.nomina.find(x=>x.id===id);
+  if(!n) return;
+  openModal('Editar Empleado', nominaForm(n), async ()=>{
+    const d = getNominaFormData();
+    const {error} = await db.from('nomina').update(d).eq('id',id);
+    if(error){alert('Error: '+error.message);return;}
+    Object.assign(n, d);
+    closeModal(); renderNomina();
+  });
+}
+async function deleteNomina(id){
+  if(!confirm('¿Eliminar este empleado?')) return;
+  const {error} = await db.from('nomina').delete().eq('id',id);
+  if(error){alert('Error: '+error.message);return;}
+  DB.nomina = DB.nomina.filter(x=>x.id!==id);
+  renderNomina();
+}
+
+// ── CONSUMOS ─────────────────────────────────────────
+function renderConsumos(){
+  const el = document.getElementById('sec-consumos');
+  const totalCosto = DB.consumos.reduce((a,c)=>a+c.costo_mes,0);
+  const totalMontador = DB.consumos.reduce((a,c)=>a+c.costo_montador,0);
+  const totalTotal = DB.consumos.reduce((a,c)=>a+c.total_mes,0);
+  el.innerHTML = `
+    <div class="page-header">
+      <h1>🌾 Consumos</h1>
+      <p>Costos mensuales de alimentación y montaje por animal</p>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="addConsumo()">+ Agregar Consumo</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Propietario</th><th>Animal</th><th>Concentrado 1</th><th>Concentrado 2</th><th>Concentrado 3</th>
+          <th>Costo/Mes</th><th>Montado</th><th>Costo Montador</th><th>Total/Mes</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="con-tbody"></tbody>
+        <tfoot><tr>
+          <td colspan="5"><strong>TOTAL</strong></td>
+          <td><strong>${formatPeso(Math.round(totalCosto))}</strong></td>
+          <td></td>
+          <td><strong>${formatPeso(Math.round(totalMontador))}</strong></td>
+          <td><strong>${formatPeso(Math.round(totalTotal))}</strong></td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+  renderConsumoRows();
+}
+function renderConsumoRows(){
+  const tbody = document.getElementById('con-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = DB.consumos.map(c=>`
+    <tr>
+      <td>${esc(c.propietario)}</td>
+      <td><strong>${esc(c.animal)}</strong></td>
+      <td>${esc(c.conc1)||'-'}</td>
+      <td>${esc(c.conc2)||'-'}</td>
+      <td>${esc(c.conc3)||'-'}</td>
+      <td>${formatPeso(Math.round(c.costo_mes))}</td>
+      <td><span class="badge ${c.montado==='Si'?'badge-green':'badge-gray'}">${c.montado}</span></td>
+      <td>${c.costo_montador?formatPeso(Math.round(c.costo_montador)):'-'}</td>
+      <td><strong>${formatPeso(Math.round(c.total_mes))}</strong></td>
+      <td class="actions">
+        <button class="btn btn-sm btn-edit" onclick="editConsumo(${c.id})">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteConsumo(${c.id})">Borrar</button>
+      </td>
+    </tr>`).join('');
+}
+function consumoForm(c={}){
+  return `<div class="form-grid">
+    <div class="form-group"><label>Propietario</label><input id="f-propietario" value="${esc(c.propietario||'')}"></div>
+    <div class="form-group"><label>Animal</label><input id="f-animal" value="${esc(c.animal||'')}"></div>
+    <div class="form-group"><label>Concentrado 1</label><input id="f-conc1" value="${esc(c.conc1||'')}"></div>
+    <div class="form-group"><label>Concentrado 2</label><input id="f-conc2" value="${esc(c.conc2||'')}"></div>
+    <div class="form-group"><label>Concentrado 3</label><input id="f-conc3" value="${esc(c.conc3||'')}"></div>
+    <div class="form-group"><label>Costo/Mes</label><input type="number" id="f-costo_mes" value="${c.costo_mes||0}"></div>
+    <div class="form-group"><label>Montado</label><select id="f-montado"><option ${c.montado==='Si'?'selected':''}>Si</option><option ${c.montado==='No'?'selected':''}>No</option></select></div>
+    <div class="form-group"><label>Costo Montador</label><input type="number" id="f-costo_montador" value="${c.costo_montador||0}"></div>
+    <div class="form-group"><label>Total/Mes</label><input type="number" id="f-total_mes" value="${c.total_mes||0}"></div>
+  </div>`;
+}
+function getConsumoFormData(){
+  return {
+    propietario:document.getElementById('f-propietario').value,
+    animal:document.getElementById('f-animal').value,
+    conc1:document.getElementById('f-conc1').value,
+    conc2:document.getElementById('f-conc2').value,
+    conc3:document.getElementById('f-conc3').value,
+    costo_mes:Number(document.getElementById('f-costo_mes').value)||0,
+    montado:document.getElementById('f-montado').value,
+    costo_montador:Number(document.getElementById('f-costo_montador').value)||0,
+    total_mes:Number(document.getElementById('f-total_mes').value)||0
+  };
+}
+async function addConsumo(){
+  openModal('Agregar Consumo', consumoForm(), async ()=>{
+    const d = getConsumoFormData();
+    if(!d.animal){alert('El animal es requerido');return;}
+    const {data,error} = await db.from('consumos').insert([d]).select();
+    if(error){alert('Error: '+error.message);return;}
+    DB.consumos.push(data[0]);
+    closeModal(); renderConsumos();
+  });
+}
+async function editConsumo(id){
+  const c = DB.consumos.find(x=>x.id===id);
+  if(!c) return;
+  openModal('Editar Consumo', consumoForm(c), async ()=>{
+    const d = getConsumoFormData();
+    const {error} = await db.from('consumos').update(d).eq('id',id);
+    if(error){alert('Error: '+error.message);return;}
+    Object.assign(c, d);
+    closeModal(); renderConsumos();
+  });
+}
+async function deleteConsumo(id){
+  if(!confirm('¿Eliminar este registro?')) return;
+  const {error} = await db.from('consumos').delete().eq('id',id);
+  if(error){alert('Error: '+error.message);return;}
+  DB.consumos = DB.consumos.filter(x=>x.id!==id);
+  renderConsumos();
+}
+
+// ── INIT ──────────────────────────────────────────────
+async function init(){
+  showLoading();
+  try {
+    await seedIfEmpty();
+    await loadAllData();
+  } catch(e) {
+    console.error('Init error', e);
+  }
+  hideLoading();
+  renderDashboard();
+}
+
+init();
+</script>
+</body>
+</html>
