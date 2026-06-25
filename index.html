@@ -99,6 +99,13 @@
     tbody tr:hover{background:#f9fafb}
     tbody td{padding:11px 14px;vertical-align:middle}
     .actions{display:flex;gap:6px;white-space:nowrap}
+    /* Mobile: hide secondary columns — keep Nombre, G, Estado, Acciones */
+    @media(max-width:768px){
+      .col-hide-mob{display:none}
+      table{font-size:0.82rem}
+      tbody td{padding:10px 10px}
+      thead th{padding:10px 10px}
+    }
 
     /* BADGES */
     .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.73rem;font-weight:600;white-space:nowrap}
@@ -1041,9 +1048,9 @@ function renderAnimales(){
           <col style="width:80px">   <!-- Acciones -->
         </colgroup>
         <thead id="anim-thead"><tr>
-          <th>#</th><th>Nombre</th><th>G</th><th>Padre</th><th>Madre</th><th>ABM</th>
-          <th>Fecha Nac.</th><th>Edad</th><th>Andar</th><th>Pasta</th><th>Montador</th>
-          <th>Propietario</th><th>Estado</th><th>Acciones</th>
+          <th class="col-hide-mob">#</th><th>Nombre</th><th>G</th><th class="col-hide-mob">Padre</th><th class="col-hide-mob">Madre</th><th class="col-hide-mob">ABM</th>
+          <th class="col-hide-mob">Fecha Nac.</th><th class="col-hide-mob">Edad</th><th class="col-hide-mob">Andar</th><th class="col-hide-mob">Pasta</th><th class="col-hide-mob">Montador</th>
+          <th class="col-hide-mob">Propietario</th><th>Estado</th><th>Acciones</th>
         </tr></thead>
         <tbody id="anim-tbody"></tbody>
       </table>
@@ -1090,18 +1097,18 @@ function filterAnimales(){
   const rows = getSortedAnimales(filtered);
   const thead = document.getElementById('anim-thead');
   if(thead) thead.innerHTML = `<tr>
-    <th>#</th>
+    <th class="col-hide-mob">#</th>
     ${sortHeader('nombre','Nombre')}
     ${sortHeader('genero','G')}
-    ${sortHeader('padre','Padre')}
-    ${sortHeader('madre','Madre')}
-    ${sortHeader('abm','ABM')}
-    ${sortHeader('fecha_nac','Fecha Nac.')}
-    ${sortHeader('edad','Edad')}
-    ${sortHeader('andar','Andar')}
-    ${sortHeader('pasta','Pasta')}
-    ${sortHeader('montador','Montador')}
-    ${sortHeader('propietario','Propietario')}
+    ${sortHeader('padre','Padre').replace('<th ','<th class="col-hide-mob" ')}
+    ${sortHeader('madre','Madre').replace('<th ','<th class="col-hide-mob" ')}
+    ${sortHeader('abm','ABM').replace('<th ','<th class="col-hide-mob" ')}
+    ${sortHeader('fecha_nac','Fecha Nac.').replace('<th ','<th class="col-hide-mob" ')}
+    ${sortHeader('edad','Edad').replace('<th ','<th class="col-hide-mob" ')}
+    ${sortHeader('andar','Andar').replace('<th ','<th class="col-hide-mob" ')}
+    ${sortHeader('pasta','Pasta').replace('<th ','<th class="col-hide-mob" ')}
+    ${sortHeader('montador','Montador').replace('<th ','<th class="col-hide-mob" ')}
+    ${sortHeader('propietario','Propietario').replace('<th ','<th class="col-hide-mob" ')}
     ${sortHeader('estado','Estado')}
     <th>Acciones</th>
   </tr>`;
@@ -1109,18 +1116,18 @@ function filterAnimales(){
   if(!tbody) return;
   tbody.innerHTML = rows.map(a=>`
     <tr>
-      <td>${a.id}</td>
+      <td class="col-hide-mob">${a.id}</td>
       <td style="cursor:pointer" title="${esc(a.nombre)}" onclick="openAnimalProfile(${a.id})"><strong>${esc(a.nombre)}</strong>${a.nota?`<span class="nota-bubble" title="${esc(a.nota)}">💬</span>`:''}</td>
       <td title="${a.genero==='M'?'Macho':'Hembra'}">${a.genero==='M'?'M':'H'}</td>
-      <td title="${esc(a.padre)}">${esc(a.padre)||'–'}</td>
-      <td title="${esc(a.madre)}">${esc(a.madre)||'–'}</td>
-      <td title="${esc(a.abm)}">${esc(a.abm)||'–'}</td>
-      <td title="${a.fecha_nac||''}">${a.fecha_nac||'–'}</td>
-      <td title="${calcMeses(a.fecha_nac)}">${calcMeses(a.fecha_nac)}</td>
-      <td title="${esc(a.andar)}"><strong>${esc(a.andar)}</strong></td>
-      <td title="${esc(a.pasta)}">${esc(a.pasta)||'–'}</td>
-      <td title="${esc(a.montador)}">${esc(a.montador)||'–'}</td>
-      <td title="${esc(a.propietario)}">${esc(a.propietario)||'–'}</td>
+      <td class="col-hide-mob" title="${esc(a.padre)}">${esc(a.padre)||'–'}</td>
+      <td class="col-hide-mob" title="${esc(a.madre)}">${esc(a.madre)||'–'}</td>
+      <td class="col-hide-mob" title="${esc(a.abm)}">${esc(a.abm)||'–'}</td>
+      <td class="col-hide-mob" title="${a.fecha_nac||''}">${a.fecha_nac||'–'}</td>
+      <td class="col-hide-mob" title="${calcMeses(a.fecha_nac)}">${calcMeses(a.fecha_nac)}</td>
+      <td class="col-hide-mob" title="${esc(a.andar)}"><strong>${esc(a.andar)}</strong></td>
+      <td class="col-hide-mob" title="${esc(a.pasta)}">${esc(a.pasta)||'–'}</td>
+      <td class="col-hide-mob" title="${esc(a.montador)}">${esc(a.montador)||'–'}</td>
+      <td class="col-hide-mob" title="${esc(a.propietario)}">${esc(a.propietario)||'–'}</td>
       <td title="${a.estado}">${estadoBadge(a.estado)}</td>
       <td class="actions">
         <button class="btn btn-sm btn-edit" onclick="editAnimal(${a.id})">Editar</button>
