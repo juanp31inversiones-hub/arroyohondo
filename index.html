@@ -337,6 +337,58 @@
     .feria-item:last-child { border-bottom: none; }
     .feria-mes { background: #1a3a2a; color: #c9a84c; border-radius: 6px; padding: 3px 8px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
 
+    /* Status Cards */
+    .status-cards-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 6px;
+    }
+    @media (max-width: 700px) {
+      .status-cards-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    .status-card {
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid #ede8df;
+      padding: 20px 18px 14px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+    .sc-count {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.8rem;
+      font-weight: 700;
+      color: #1a3a2a;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .sc-status-lbl {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #888;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .sc-gender {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .sc-m { color: #2563eb; }
+    .sc-h { color: #be185d; }
+    .sc-sep { color: #ddd; }
+    .sc-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+    }
+
     /* Pedigree chart */
     .pedigree-chart {
       display: flex;
@@ -650,7 +702,7 @@ function calcMeses(fechaNac){
 }
 function estadoBadge(e){
   const map = {
-    'En Propiedad':'badge-green','Vendido':'badge-red','Cedido':'badge-blue',
+    'En Propiedad':'badge-green','Vendido':'badge-red','Cedido':'badge-blue','Muerto':'badge-gray',
     'Pendiente':'badge-orange','Confirmada':'badge-teal','Nacido':'badge-purple',
     'Hecho':'badge-green','Enviado':'badge-gray'
   };
@@ -727,6 +779,14 @@ function modalSave(){ if(_modalSaveFn) _modalSaveFn(); }
 document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
 
 // ── DASHBOARD ─────────────────────────────────────────
+function calcMesesNum(fechaNac) {
+  if (!fechaNac) return -1;
+  const hoy = new Date();
+  const nac = new Date(fechaNac);
+  if (isNaN(nac)) return -1;
+  return Math.floor((hoy - nac) / (1000 * 60 * 60 * 24 * 30.44));
+}
+
 function renderDashboard() {
   const A = DB.animales || [];
   const S = DB.saltos || [];
@@ -734,20 +794,18 @@ function renderDashboard() {
   const N = DB.nomina || [];
   const C = DB.consumos || [];
 
-  const activos = A.filter(a => a.estado !== 'Vendido');
   const enPropiedad = A.filter(a => a.estado === 'En Propiedad');
-  const vendidos = A.filter(a => a.estado === 'Vendido');
-  const machos = activos.filter(a => a.genero === 'M');
-  const hembras = activos.filter(a => a.genero === 'H');
+  const cedidos     = A.filter(a => a.estado === 'Cedido');
+  const vendidos    = A.filter(a => a.estado === 'Vendido');
+  const muertos     = A.filter(a => a.estado === 'Muerto');
 
-  const saltosNacidos = S.filter(s => s.estado === 'Nacido').length;
-  const saltosConfirmados = S.filter(s => s.estado === 'Confirmada').length;
-  const saltosPendientes = S.filter(s => s.estado === 'Pendiente').length;
-  const saltosValor = S.reduce((t,s) => t + (Number(s.valor)||0), 0);
+  const activos = [...enPropiedad, ...cedidos];
 
-  const embrionesHechos = E.filter(e => e.estado === 'Hecho');
-  const embrionesValor = embrionesHechos.reduce((t,e) => t + (Number(e.precio)||0), 0);
-  const embrionesRecibido = embrionesHechos.reduce((t,e) => t + (Number(e.recibido)||0), 0);
+  const potros   = activos.filter(a => { const m = calcMesesNum(a.fecha_nac); return m >= 0 && m < 12; });
+  const jovenes  = activos.filter(a => { const m = calcMesesNum(a.fecha_nac); return m >= 12 && m < 36; });
+  const adultos  = activos.filter(a => { const m = calcMesesNum(a.fecha_nac); return m >= 36 && m < 84; });
+  const seniors  = activos.filter(a => { const m = calcMesesNum(a.fecha_nac); return m >= 84; });
+  const sinFecha = activos.filter(a => !a.fecha_nac);
 
   const nominaTotal = N.reduce((t,n) => t + (Number(n.neto_pagado)||0), 0);
   const consumoTotal = C.reduce((t,c) => t + (Number(c.total_mes)||0), 0);
@@ -794,60 +852,82 @@ function renderDashboard() {
       <button class="qa-btn" onclick="showSection('mapa')">🗺️ Mapa Genético</button>
     </div>
 
-    <div class="dash-section-title">🐴 Inventario de Animales</div>
-    <div class="stat-strip">
-      <div class="stat-strip-item">
-        <div class="ss-num">${enPropiedad.length}</div>
-        <div class="ss-lbl">En Propiedad</div>
+    <div class="dash-section-title">🐎 Estado del Inventario</div>
+    <div class="status-cards-row">
+      <div class="status-card">
+        <div class="sc-count">${enPropiedad.length}</div>
+        <div class="sc-status-lbl">En Propiedad</div>
+        <div class="sc-gender">
+          <span class="sc-m">♂ ${enPropiedad.filter(a=>a.genero==='M').length} M</span>
+          <span class="sc-sep">|</span>
+          <span class="sc-h">♀ ${enPropiedad.filter(a=>a.genero==='H').length} H</span>
+        </div>
+        <div class="sc-bar" style="background:#1a3a2a"></div>
       </div>
-      <div class="ss-divider"></div>
-      <div class="stat-strip-item">
-        <div class="ss-num">${machos.length}</div>
-        <div class="ss-lbl">Machos</div>
+      <div class="status-card">
+        <div class="sc-count">${cedidos.length}</div>
+        <div class="sc-status-lbl">Cedidos</div>
+        <div class="sc-gender">
+          <span class="sc-m">♂ ${cedidos.filter(a=>a.genero==='M').length} M</span>
+          <span class="sc-sep">|</span>
+          <span class="sc-h">♀ ${cedidos.filter(a=>a.genero==='H').length} H</span>
+        </div>
+        <div class="sc-bar" style="background:#2563eb"></div>
       </div>
-      <div class="ss-divider"></div>
-      <div class="stat-strip-item">
-        <div class="ss-num">${hembras.length}</div>
-        <div class="ss-lbl">Hembras</div>
+      <div class="status-card">
+        <div class="sc-count">${vendidos.length}</div>
+        <div class="sc-status-lbl">Vendidos</div>
+        <div class="sc-gender">
+          <span class="sc-m">♂ ${vendidos.filter(a=>a.genero==='M').length} M</span>
+          <span class="sc-sep">|</span>
+          <span class="sc-h">♀ ${vendidos.filter(a=>a.genero==='H').length} H</span>
+        </div>
+        <div class="sc-bar" style="background:#dc2626"></div>
       </div>
-      <div class="ss-divider"></div>
-      <div class="stat-strip-item">
-        <div class="ss-num">${vendidos.length}</div>
-        <div class="ss-lbl">Vendidos</div>
-      </div>
-      <div class="ss-divider"></div>
-      <div class="stat-strip-item">
-        <div class="ss-num">${A.filter(a=>a.estado==='Cedido').length}</div>
-        <div class="ss-lbl">Cedidos</div>
+      <div class="status-card">
+        <div class="sc-count">${muertos.length}</div>
+        <div class="sc-status-lbl">Muertos</div>
+        <div class="sc-gender">
+          <span class="sc-m">♂ ${muertos.filter(a=>a.genero==='M').length} M</span>
+          <span class="sc-sep">|</span>
+          <span class="sc-h">♀ ${muertos.filter(a=>a.genero==='H').length} H</span>
+        </div>
+        <div class="sc-bar" style="background:#6b7280"></div>
       </div>
     </div>
 
-    <div class="dash-section-title">💰 Actividad Comercial</div>
-    <div class="stat-strip" style="margin-top:10px">
+    <div class="dash-section-title">🐣 Distribución por Edades</div>
+    <div class="stat-strip">
       <div class="stat-strip-item">
-        <div class="ss-num ss-gold">${saltosNacidos}</div>
-        <div class="ss-lbl">Nacidos</div>
+        <div class="ss-num" style="color:#f59e0b">${potros.length}</div>
+        <div class="ss-lbl">Potros</div>
+        <div class="ss-lbl" style="margin-top:2px;font-size:0.65rem">0–12 meses</div>
       </div>
       <div class="ss-divider"></div>
       <div class="stat-strip-item">
-        <div class="ss-num ss-gold">${saltosConfirmados}</div>
-        <div class="ss-lbl">Confirmados</div>
+        <div class="ss-num" style="color:#10b981">${jovenes.length}</div>
+        <div class="ss-lbl">Jóvenes</div>
+        <div class="ss-lbl" style="margin-top:2px;font-size:0.65rem">12–36 meses</div>
       </div>
       <div class="ss-divider"></div>
       <div class="stat-strip-item">
-        <div class="ss-num ss-gold">${saltosPendientes}</div>
-        <div class="ss-lbl">Pendientes semen</div>
+        <div class="ss-num" style="color:#1a3a2a">${adultos.length}</div>
+        <div class="ss-lbl">Adultos</div>
+        <div class="ss-lbl" style="margin-top:2px;font-size:0.65rem">36–84 meses</div>
       </div>
       <div class="ss-divider"></div>
       <div class="stat-strip-item">
-        <div class="ss-num ss-gold">${embrionesHechos.length}</div>
-        <div class="ss-lbl">Embriones vendidos</div>
+        <div class="ss-num" style="color:#7c3aed">${seniors.length}</div>
+        <div class="ss-lbl">Senior</div>
+        <div class="ss-lbl" style="margin-top:2px;font-size:0.65rem">+84 meses</div>
       </div>
+      ${sinFecha.length > 0 ? `
       <div class="ss-divider"></div>
       <div class="stat-strip-item">
-        <div class="ss-num ss-gold" style="font-size:1.4rem">${formatPeso(embrionesRecibido)}</div>
-        <div class="ss-lbl">Ingreso embriones</div>
-      </div>
+        <div class="ss-num" style="color:#9ca3af">${sinFecha.length}</div>
+        <div class="ss-lbl">Sin fecha</div>
+        <div class="ss-lbl" style="margin-top:2px;font-size:0.65rem">—</div>
+      </div>` : ''}
     </div>
 
     <div class="dash-section-title">📊 Distribución del Criadero</div>
@@ -883,7 +963,7 @@ function renderDashboard() {
       </div>
     </div>
 
-    <div class="dash-section-title">📋 Costos Mensuales</div>
+    <div class="dash-section-title">💰 Costos Mensuales</div>
     <div style="background:#fff;border-radius:14px;border:1px solid #ede8df;overflow:hidden;margin-bottom:6px">
       <div style="background:#1a3a2a;padding:14px 22px;display:flex;justify-content:space-between;align-items:center">
         <span style="color:#c9a84c;font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:700">💰 Costos Mensuales Estimados</span>
@@ -932,7 +1012,7 @@ function renderAnimales(){
       <input type="text" id="anim-search" placeholder="Buscar nombre..." oninput="filterAnimales()">
       <select id="anim-estado" onchange="filterAnimales()">
         <option value="">Todos los estados</option>
-        <option>En Propiedad</option><option>Vendido</option><option>Cedido</option>
+        <option>En Propiedad</option><option>Vendido</option><option>Cedido</option><option>Muerto</option>
       </select>
       <select id="anim-genero" onchange="filterAnimales()">
         <option value="">Ambos géneros</option>
@@ -1068,7 +1148,7 @@ function animalForm(a={}){
     <div class="form-group"><label>Montador</label><input id="f-montador" class="form-input" list="list-montador" autocomplete="off" value="${esc(a.montador||'')}"></div>
     <div class="form-group"><label>Propietario</label><input id="f-propietario" class="form-input" list="list-propietario" autocomplete="off" value="${esc(a.propietario||'')}"></div>
     <div class="form-group"><label>Estado</label><select id="f-estado">
-      ${['En Propiedad','Vendido','Cedido'].map(s=>`<option ${a.estado===s?'selected':''}>${s}</option>`).join('')}
+      ${['En Propiedad','Vendido','Cedido','Muerto'].map(s=>`<option ${a.estado===s?'selected':''}>${s}</option>`).join('')}
     </select></div>
     <div class="form-group"><label>Andar</label><input id="f-andar" class="form-input" type="text" list="list-andar" autocomplete="off" placeholder="P1, P2, P3, P4, APQH..." value="${esc(a.andar||'')}"></div>
     <div class="form-group form-full"><label>Nota</label><textarea id="f-nota">${esc(a.nota||'')}</textarea></div>
