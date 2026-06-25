@@ -336,6 +336,118 @@
     .feria-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f0e8; font-size: 0.84rem; }
     .feria-item:last-child { border-bottom: none; }
     .feria-mes { background: #1a3a2a; color: #c9a84c; border-radius: 6px; padding: 3px 8px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+
+    /* Pedigree chart */
+    .pedigree-chart {
+      display: flex;
+      align-items: stretch;
+      min-width: 600px;
+      gap: 0;
+    }
+    .ped-col { display: flex; flex-direction: column; }
+    .ped-col-conn { width: 28px; flex-shrink: 0; }
+    .ped-col-1 { flex: 0 0 200px; }
+    .ped-col-2 { flex: 0 0 190px; }
+    .ped-col-3 { flex: 0 0 180px; }
+    .ped-col-4 { flex: 0 0 170px; }
+
+    .ped-cell { display: flex; align-items: center; justify-content: flex-start; padding: 3px 0; }
+    .ped-cell-full { flex: 1; }
+    .ped-cell-half { flex: 0 0 50%; }
+    .ped-cell-quarter { flex: 0 0 25%; }
+    .ped-cell-eighth { flex: 0 0 12.5%; }
+
+    /* Connector lines */
+    .ped-line { width: 100%; height: 100%; position: relative; }
+    .ped-line-top-right::before {
+      content: '';
+      position: absolute;
+      right: 0; top: 50%;
+      width: 40%; height: 1px;
+      background: #c9a84c;
+    }
+    .ped-line-top-right::after {
+      content: '';
+      position: absolute;
+      right: 40%; top: 0;
+      width: 1px; height: 50%;
+      background: #c9a84c;
+    }
+    .ped-line-bot-right::before {
+      content: '';
+      position: absolute;
+      right: 0; top: 50%;
+      width: 40%; height: 1px;
+      background: #c9a84c;
+    }
+    .ped-line-bot-right::after {
+      content: '';
+      position: absolute;
+      right: 40%; top: 50%;
+      width: 1px; height: 50%;
+      background: #c9a84c;
+    }
+
+    /* Pedigree boxes */
+    .pedigree-box {
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin: 3px 4px;
+      width: calc(100% - 8px);
+      box-sizing: border-box;
+      min-height: 54px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .pedigree-box.animal-box {
+      background: #1a3a2a;
+      border: 2px solid #c9a84c;
+      padding: 14px 14px;
+      min-height: 80px;
+    }
+    .animal-box .pb-name { color: #fff; font-size: 0.9rem; }
+    .animal-box .pb-sub { color: rgba(255,255,255,0.65); }
+    .animal-box .pb-label { color: #c9a84c; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+    .animal-box .pb-estado { color: #c9a84c; font-size: 0.7rem; margin-top: 4px; }
+
+    .pedigree-box.in-db {
+      background: #e8f4ec;
+      border: 1.5px solid #2d5a3d;
+    }
+    .in-db .pb-name { color: #1a3a2a; }
+
+    .pedigree-box.external {
+      background: #fff;
+      border: 1.5px solid #d0c8bc;
+    }
+    .external .pb-name { color: #444; }
+
+    .pedigree-box.unknown {
+      background: #f9f7f5;
+      border: 1px dashed #ccc;
+      opacity: 0.6;
+    }
+    .unknown .pb-name { color: #aaa; }
+
+    .pb-name {
+      font-weight: 700;
+      font-size: 0.78rem;
+      line-height: 1.3;
+      font-family: 'Inter', sans-serif;
+    }
+    .pb-sub {
+      font-size: 0.68rem;
+      color: #888;
+      margin-top: 2px;
+    }
+    .pb-abm {
+      font-size: 0.65rem;
+      color: #c9a84c;
+      margin-top: 2px;
+      margin-left: 4px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -2025,82 +2137,182 @@ function renderMapaGenetico() {
   `;
 }
 
+// Find animal in DB by exact name match (case-insensitive)
+function findByNombre(nombre) {
+  if (!nombre || nombre === '-' || nombre === '') return null;
+  const n = nombre.toLowerCase().trim();
+  return DB.animales.find(a => a.nombre && a.nombre.toLowerCase().trim() === n) || null;
+}
+
+// Build pedigree tree node recursively (max depth generations above)
+function buildNode(nombre, depth) {
+  if (!nombre || nombre === '-' || depth < 0) return null;
+  const animal = findByNombre(nombre);
+  const node = {
+    nombre: nombre,
+    inDB: !!animal,
+    data: animal,
+    padre: null,
+    madre: null,
+  };
+  if (animal && depth > 0) {
+    if (animal.padre) node.padre = buildNode(animal.padre, depth - 1);
+    if (animal.madre) node.madre = buildNode(animal.madre, depth - 1);
+  }
+  return node;
+}
+
 function renderArbol() {
   const id = parseInt(document.getElementById('tree-select').value);
   const container = document.getElementById('arbol-container');
-  if(!id){ container.innerHTML=''; return; }
+  if (!id) { container.innerHTML = ''; return; }
 
-  const animal = DB.animales.find(a=>a.id===id);
-  if(!animal){ container.innerHTML=''; return; }
+  const animal = DB.animales.find(a => a.id === id);
+  if (!animal) { container.innerHTML = ''; return; }
 
-  const padre = DB.animales.find(a => a.nombre === animal.padre);
-  const madre = DB.animales.find(a => a.nombre === animal.madre);
+  // Build the pedigree tree (3 generations above = depth 2 for parents, who get depth 2 means they recurse 2 more)
+  const tree = {
+    nombre: animal.nombre,
+    inDB: true,
+    data: animal,
+    padre: animal.padre ? buildNode(animal.padre, 2) : null,
+    madre: animal.madre ? buildNode(animal.madre, 2) : null,
+  };
 
-  // ABM of padre and madre (their own abm fields); animal.abm is the maternal ABM of this animal
-  const abmPadre = padre ? padre.abm : '';
-  const abmMadre = madre ? madre.abm : (animal.abm || '');
+  container.innerHTML = renderPedigreeHTML(tree, animal);
+}
 
-  const box = (titulo, subtitulo, textColor='#1a3a2a', bgColor='#f5f0e8', borderColor='#c9a84c') =>
-    `<div style="background:${bgColor};border:2px solid ${borderColor};border-radius:10px;padding:10px 14px;text-align:center;min-width:160px;max-width:200px">
-      <div style="font-weight:700;color:${textColor};font-size:0.88rem;line-height:1.3">${titulo||'–'}</div>
-      ${subtitulo?`<div style="font-size:0.72rem;color:#888;margin-top:3px">${subtitulo}</div>`:''}
+function renderPedigreeHTML(tree, animal) {
+  const meses = calcMeses(animal.fecha_nac);
+
+  // Pedigree box styles
+  const boxInDB = (node) => `
+    <div class="pedigree-box in-db" title="En el criadero">
+      <div class="pb-name">${node.nombre}</div>
+      <div class="pb-sub">${calcMeses(node.data.fecha_nac)} · ${node.data.andar||''} · ${node.data.genero==='M'?'M':'H'}</div>
     </div>`;
 
-  const line = (color='#c9a84c') =>
-    `<div style="width:2px;background:${color};height:30px;margin:0 auto"></div>`;
+  const boxExternal = (node) => `
+    <div class="pedigree-box external" title="Externo al criadero">
+      <div class="pb-name">${node.nombre}</div>
+      <div class="pb-sub">Externo</div>
+    </div>`;
 
-  container.innerHTML = `
+  const boxUnknown = () => `
+    <div class="pedigree-box unknown">
+      <div class="pb-name">–</div>
+      <div class="pb-sub">Desconocido</div>
+    </div>`;
+
+  const renderBox = (node) => {
+    if (!node) return boxUnknown();
+    if (node.inDB) return boxInDB(node);
+    return boxExternal(node);
+  };
+
+  // Extract all 4 generations:
+  // Gen 2: padre, madre
+  const padre = tree.padre;
+  const madre = tree.madre;
+  // Gen 3: grandparents
+  const gppp = padre?.padre || null; // grandfather paternal
+  const gppm = padre?.madre || null; // grandmother paternal
+  const gpmp = madre?.padre || null; // grandfather maternal
+  const gpmm = madre?.madre || null; // grandmother maternal
+  // Gen 4: great-grandparents
+  const ggppp = gppp?.padre || null;
+  const ggppm = gppp?.madre || null;
+  const ggpmp = gppm?.padre || null;
+  const ggpmm = gppm?.madre || null;
+  const ggmpp = gpmp?.padre || null;
+  const ggmpm = gpmp?.madre || null;
+  const ggmmp = gpmm?.padre || null;
+  const ggmmm = gpmm?.madre || null;
+
+  // Check if we have any gen 4 data
+  const hasGen4 = ggppp || ggppm || ggpmp || ggpmm || ggmpp || ggmpm || ggmmp || ggmmm;
+  // Check if we have any gen 3 data
+  const hasGen3 = gppp || gppm || gpmp || gpmm;
+
+  return `
     <div style="overflow-x:auto;padding:10px 0">
-    <div style="min-width:500px;display:flex;flex-direction:column;align-items:center;gap:0">
+    <div class="pedigree-chart">
 
-      <!-- Fila 1: ABMs (abuelos) -->
-      <div style="display:flex;gap:60px;align-items:flex-end">
-        <div style="display:flex;flex-direction:column;align-items:center">
-          ${box(abmPadre||'ABM Paterno','ABM Paterno','#7c5c1e','#fff8e8','#c9a84c')}
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:center">
-          ${box(abmMadre||'ABM Materno','ABM Materno','#7c5c1e','#fff8e8','#c9a84c')}
-        </div>
-      </div>
-
-      <!-- Líneas hacia padres -->
-      <div style="display:flex;gap:60px">
-        <div>${line('#c9a84c')}</div>
-        <div>${line('#c9a84c')}</div>
-      </div>
-
-      <!-- Fila 2: Padre y Madre -->
-      <div style="display:flex;gap:60px;align-items:flex-start">
-        <div style="display:flex;flex-direction:column;align-items:center">
-          ${box(animal.padre||'Padre desconocido', padre ? `${calcMeses(padre.fecha_nac)} meses · ${padre.genero==='M'?'Macho':'Hembra'}` : 'Externo al criadero','#1a3a2a','#e8f0e8','#1a3a2a')}
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:center">
-          ${box(animal.madre||'Madre desconocida', madre ? `${calcMeses(madre.fecha_nac)} meses` : 'Externa al criadero','#2d5a3d','#e8f4ec','#2d5a3d')}
+      <!-- ANIMAL (gen 1) -->
+      <div class="ped-col ped-col-1">
+        <div class="ped-cell ped-cell-full">
+          <div class="pedigree-box animal-box">
+            <div class="pb-label">ANIMAL</div>
+            <div class="pb-name">${animal.nombre}</div>
+            <div class="pb-sub">${animal.genero==='M'?'Macho':'Hembra'} · ${meses} · ${animal.andar||''}</div>
+            ${animal.estado ? `<div class="pb-estado">${animal.estado}</div>` : ''}
+          </div>
         </div>
       </div>
 
-      <!-- Líneas convergentes hacia animal -->
-      <div style="display:flex;gap:60px;position:relative;width:100%;justify-content:center">
-        <div style="display:flex;flex-direction:column;align-items:flex-end;width:50%">
-          <div style="width:2px;background:#1a3a2a;height:20px;margin-right:calc(50% - 1px)"></div>
-          <div style="width:50%;height:2px;background:#1a3a2a;align-self:flex-end"></div>
+      <!-- CONNECTOR COL -->
+      <div class="ped-col ped-col-conn">
+        <div class="ped-cell ped-cell-half"><div class="ped-line ped-line-top-right"></div></div>
+        <div class="ped-cell ped-cell-half"><div class="ped-line ped-line-bot-right"></div></div>
+      </div>
+
+      <!-- PARENTS (gen 2) -->
+      <div class="ped-col ped-col-2">
+        <div class="ped-cell ped-cell-half">
+          ${renderBox(padre)}
+          ${padre?.data?.abm ? `<div class="pb-abm">ABM: ${padre.data.abm}</div>` : ''}
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-start;width:50%">
-          <div style="width:2px;background:#2d5a3d;height:20px;margin-left:calc(50% - 1px)"></div>
-          <div style="width:50%;height:2px;background:#2d5a3d"></div>
+        <div class="ped-cell ped-cell-half">
+          ${renderBox(madre)}
+          ${madre?.data?.abm ? `<div class="pb-abm">ABM: ${madre.data.abm}</div>` : ''}
+          ${animal.abm && !madre ? `<div class="pb-abm">ABM: ${animal.abm}</div>` : ''}
         </div>
       </div>
-      <div>${line('#1a3a2a')}</div>
 
-      <!-- Fila 3: El animal -->
-      ${box(animal.nombre, `${animal.genero==='M'?'Macho':'Hembra'} · ${calcMeses(animal.fecha_nac)} · ${animal.andar||''} · ${animal.estado||''}`, '#fff','#1a3a2a','#c9a84c')}
+      ${hasGen3 ? `
+      <!-- CONNECTOR COL -->
+      <div class="ped-col ped-col-conn">
+        <div class="ped-cell ped-cell-quarter"><div class="ped-line ped-line-top-right"></div></div>
+        <div class="ped-cell ped-cell-quarter"><div class="ped-line ped-line-bot-right"></div></div>
+        <div class="ped-cell ped-cell-quarter"><div class="ped-line ped-line-top-right"></div></div>
+        <div class="ped-cell ped-cell-quarter"><div class="ped-line ped-line-bot-right"></div></div>
+      </div>
 
-      ${animal.abm ? `
-      <div style="margin-top:8px;font-size:0.78rem;color:#888;text-align:center">
-        <span style="background:#fff8e8;border:1px solid #c9a84c;border-radius:20px;padding:3px 12px">ABM: ${animal.abm}</span>
-      </div>` : ''}
+      <!-- GRANDPARENTS (gen 3) -->
+      <div class="ped-col ped-col-3">
+        <div class="ped-cell ped-cell-quarter">${renderBox(gppp)}</div>
+        <div class="ped-cell ped-cell-quarter">${renderBox(gppm)}</div>
+        <div class="ped-cell ped-cell-quarter">${renderBox(gpmp)}</div>
+        <div class="ped-cell ped-cell-quarter">${renderBox(gpmm)}</div>
+      </div>
+      ` : ''}
+
+      ${hasGen4 ? `
+      <!-- CONNECTOR COL -->
+      <div class="ped-col ped-col-conn">
+        ${[ggppp,ggppm,ggpmp,ggpmm,ggmpp,ggmpm,ggmmp,ggmmm].map((_,i) =>
+          `<div class="ped-cell ped-cell-eighth">
+            <div class="ped-line ${i%2===0?'ped-line-top-right':'ped-line-bot-right'}"></div>
+          </div>`
+        ).join('')}
+      </div>
+
+      <!-- GREAT-GRANDPARENTS (gen 4) -->
+      <div class="ped-col ped-col-4">
+        ${[ggppp,ggppm,ggpmp,ggpmm,ggmpp,ggmpm,ggmmp,ggmmm].map(node =>
+          `<div class="ped-cell ped-cell-eighth">${renderBox(node)}</div>`
+        ).join('')}
+      </div>
+      ` : ''}
 
     </div>
+    </div>
+
+    <!-- LEGEND -->
+    <div style="display:flex;gap:16px;margin-top:14px;font-size:0.78rem;color:#666;flex-wrap:wrap">
+      <span><span style="display:inline-block;width:12px;height:12px;background:#1a3a2a;border-radius:3px;vertical-align:middle;margin-right:4px"></span>Animal del criadero</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:#e8f0e8;border:1px solid #2d5a3d;border-radius:3px;vertical-align:middle;margin-right:4px"></span>Externo al criadero</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:#f5f5f5;border:1px solid #ddd;border-radius:3px;vertical-align:middle;margin-right:4px"></span>Sin información</span>
     </div>
   `;
 }
