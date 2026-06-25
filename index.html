@@ -8,8 +8,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Inter',sans-serif;background:#f5f0e8;color:#222;display:flex;min-height:100vh}
-    #app{display:flex;width:100%;min-height:100vh}
+    body{font-family:'Inter',sans-serif;background:#f5f0e8;color:#222;min-height:100vh}
+    #app{display:flex;width:100%;min-height:100vh;position:relative}
 
     /* LOADING */
     #loading-screen{position:fixed;inset:0;background:#f5f0e8;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}
@@ -18,7 +18,8 @@
     #loading-screen p{color:#6b7280;font-size:0.9rem}
 
     /* SIDEBAR */
-    #sidebar{width:240px;min-height:100vh;background:#1a3a2a;display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100}
+    #sidebar{width:240px;min-height:100vh;background:#1a3a2a;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100%;z-index:1000;overflow-y:auto;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1)}
+    #sidebar.collapsed{transform:translateX(-240px)}
     .sidebar-header{padding:24px 20px 20px;border-bottom:1px solid #2d5a3d;display:flex;align-items:center;gap:12px}
     .logo-horse{font-size:2rem}
     .logo-title{font-family:'Playfair Display',serif;color:#c9a84c;font-size:1.1rem;font-weight:700;letter-spacing:1px}
@@ -29,10 +30,35 @@
     .nav-item.active{background:#2d5a3d;color:#c9a84c;border-left-color:#c9a84c}
     .nav-item .icon{font-size:1.1rem;width:22px;text-align:center}
 
+    /* OVERLAY */
+    #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999}
+    #sidebar-overlay.active{display:block}
+
+    /* HAMBURGER */
+    #sidebar-toggle{position:fixed;top:14px;left:14px;z-index:1100;background:#1a3a2a;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:background 0.2s}
+    #sidebar-toggle:hover{background:#2d5a3d}
+    #sidebar-toggle span{display:block;width:20px;height:2px;background:#c9a84c;border-radius:2px;transition:all 0.3s}
+    #sidebar-toggle.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+    #sidebar-toggle.open span:nth-child(2){opacity:0;transform:scaleX(0)}
+    #sidebar-toggle.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
     /* MAIN */
-    #main{margin-left:240px;flex:1;padding:32px;min-height:100vh}
+    #main{margin-left:240px;flex:1;min-width:0;min-height:100vh;padding:32px;transition:margin-left 0.3s cubic-bezier(0.4,0,0.2,1)}
+    #main.expanded{margin-left:0}
     .section{display:none}
     .section.active{display:block}
+    .section{padding-left:68px}
+
+    @media (max-width:768px){
+      #sidebar{transform:translateX(-240px)}
+      #main{margin-left:0}
+      .section{padding-left:60px}
+    }
+    @media (min-width:769px){
+      #sidebar{transform:translateX(0)}
+      #main{margin-left:240px}
+      #sidebar-overlay{display:none !important}
+    }
 
     /* PAGE HEADER */
     .page-header{margin-bottom:28px}
@@ -276,6 +302,7 @@
   </style>
 </head>
 <body>
+<div id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
 <!-- LOADING SCREEN -->
 <div id="loading-screen">
@@ -302,6 +329,9 @@
   </nav>
 
   <main id="main">
+    <button id="sidebar-toggle" onclick="toggleSidebar()" title="Menú">
+      <span></span><span></span><span></span>
+    </button>
     <div id="sec-dashboard" class="section active"></div>
     <div id="sec-animales" class="section"></div>
     <div id="sec-mapa" class="section"></div>
@@ -522,6 +552,17 @@ function showSection(name){
   });
   const renders = {dashboard:renderDashboard,animales:renderAnimales,mapa:renderMapaGenetico,saltos:renderSaltos,embriones:renderEmbriones,ferias:renderFerias,nomina:renderNomina,consumos:renderConsumos,planeador:renderPlaneadorSection};
   if(renders[name]) renders[name]();
+  // Close sidebar on mobile when nav item is clicked
+  if(window.innerWidth <= 768){
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebar-toggle');
+    const overlay = document.getElementById('sidebar-overlay');
+    const main = document.getElementById('main');
+    sidebar.classList.add('collapsed');
+    toggle.classList.remove('open');
+    overlay.classList.remove('active');
+    main.classList.add('expanded');
+  }
 }
 
 // ── MODAL ─────────────────────────────────────────────
@@ -2042,6 +2083,76 @@ function renderArbol() {
 }
 
 // ── INIT ──────────────────────────────────────────────
+function toggleSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main');
+  const toggle = document.getElementById('sidebar-toggle');
+  const overlay = document.getElementById('sidebar-overlay');
+  const isMobile = window.innerWidth <= 768;
+  const isCollapsed = sidebar.classList.contains('collapsed');
+  if(isCollapsed){
+    sidebar.classList.remove('collapsed');
+    toggle.classList.add('open');
+    if(isMobile){
+      main.classList.add('expanded');
+      overlay.classList.add('active');
+    } else {
+      main.classList.remove('expanded');
+    }
+  } else {
+    sidebar.classList.add('collapsed');
+    toggle.classList.remove('open');
+    main.classList.add('expanded');
+    overlay.classList.remove('active');
+  }
+  if(!isMobile){
+    localStorage.setItem('sidebarOpen', isCollapsed ? 'true' : 'false');
+  }
+}
+
+function initSidebar(){
+  const isMobile = window.innerWidth <= 768;
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main');
+  const toggle = document.getElementById('sidebar-toggle');
+  if(isMobile){
+    sidebar.classList.add('collapsed');
+    main.classList.add('expanded');
+    toggle.classList.remove('open');
+  } else {
+    const saved = localStorage.getItem('sidebarOpen');
+    if(saved === 'false'){
+      sidebar.classList.add('collapsed');
+      main.classList.add('expanded');
+      toggle.classList.remove('open');
+    } else {
+      sidebar.classList.remove('collapsed');
+      main.classList.remove('expanded');
+      toggle.classList.add('open');
+    }
+  }
+}
+
+window.addEventListener('resize', ()=>{
+  const isMobile = window.innerWidth <= 768;
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main');
+  const overlay = document.getElementById('sidebar-overlay');
+  if(!isMobile){
+    overlay.classList.remove('active');
+    const saved = localStorage.getItem('sidebarOpen');
+    if(saved === 'false'){
+      sidebar.classList.add('collapsed');
+      main.classList.add('expanded');
+    } else {
+      sidebar.classList.remove('collapsed');
+      main.classList.remove('expanded');
+    }
+  } else {
+    main.classList.add('expanded');
+  }
+});
+
 async function init(){
   showLoading();
   try {
@@ -2053,6 +2164,7 @@ async function init(){
   hideLoading();
   populateDataLists();
   renderDashboard();
+  initSidebar();
 }
 
 init();
