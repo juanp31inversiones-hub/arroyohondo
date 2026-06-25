@@ -138,6 +138,20 @@
     .section-header p{color:#6b7280;font-size:0.875rem;margin-top:4px}
     .form-input{padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;font-family:'Inter',sans-serif;outline:none;width:100%}
     .form-input:focus{border-color:#2d5a3d}
+
+    /* NOTA BUBBLE */
+    .nota-bubble{cursor:help;margin-left:6px;font-size:0.9rem;position:relative}
+    .nota-bubble:hover::after{content:attr(title);position:absolute;background:#1a3a2a;color:#fff;padding:6px 10px;border-radius:6px;font-size:0.8rem;max-width:250px;z-index:100;white-space:pre-wrap;left:0;top:1.4em}
+
+    /* MINI CARDS (Dashboard) */
+    .dash-subtitle{color:#1a3a2a;font-family:'Playfair Display';margin:24px 0 12px;font-size:1.1rem;border-bottom:2px solid #c9a84c;padding-bottom:6px}
+    .mini-cards-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+    .mini-card{background:#fff;border:1px solid #e8dcc8;border-radius:10px;padding:14px 20px;text-align:center;min-width:100px}
+    .mini-val{font-size:1.8rem;font-weight:700;color:#1a3a2a;font-family:'Playfair Display'}
+    .mini-lbl{font-size:0.75rem;color:#666;margin-top:4px;text-transform:uppercase;letter-spacing:0.05em}
+
+    /* ANIMALES TABLE */
+    #anim-table{min-width:1200px;table-layout:fixed}
   </style>
 </head>
 <body>
@@ -156,6 +170,7 @@
     <ul class="nav-menu">
       <li class="nav-item active" onclick="showSection('dashboard')"><span class="icon">🏠</span>Dashboard</li>
       <li class="nav-item" onclick="showSection('animales')"><span class="icon">🐴</span>Animales</li>
+      <li class="nav-item" onclick="showSection('mapa')"><span class="icon">🧬</span>Mapa Genético</li>
       <li class="nav-item" onclick="showSection('saltos')"><span class="icon">💉</span>Venta Saltos</li>
       <li class="nav-item" onclick="showSection('embriones')"><span class="icon">🧬</span>Venta Embriones</li>
       <li class="nav-item" onclick="showSection('ferias')"><span class="icon">🏆</span>Record Ferias</li>
@@ -168,6 +183,7 @@
   <main id="main">
     <div id="sec-dashboard" class="section active"></div>
     <div id="sec-animales" class="section"></div>
+    <div id="sec-mapa" class="section"></div>
     <div id="sec-saltos" class="section"></div>
     <div id="sec-embriones" class="section"></div>
     <div id="sec-ferias" class="section"></div>
@@ -320,14 +336,13 @@ function formatPeso(n){
 }
 function calcMeses(fechaNac){
   if(!fechaNac) return '-';
-  const hoy = new Date('2026-06-24');
+  const hoy = new Date();
   const nac = new Date(fechaNac);
   if(isNaN(nac)) return '-';
   let m = (hoy.getFullYear()-nac.getFullYear())*12 + (hoy.getMonth()-nac.getMonth());
   if(m < 0) m = 0;
-  const y = Math.floor(m/12);
-  const mo = m%12;
-  return y > 0 ? `${y}a ${mo}m` : `${mo}m`;
+  if(m < 1) return '< 1 mes';
+  return `${m} meses`;
 }
 function estadoBadge(e){
   const map = {
@@ -380,7 +395,7 @@ function showSection(name){
   document.querySelectorAll('.nav-item').forEach(n=>{
     if(n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+name+"'")) n.classList.add('active');
   });
-  const renders = {dashboard:renderDashboard,animales:renderAnimales,saltos:renderSaltos,embriones:renderEmbriones,ferias:renderFerias,nomina:renderNomina,consumos:renderConsumos,planeador:renderPlaneadorSection};
+  const renders = {dashboard:renderDashboard,animales:renderAnimales,mapa:renderMapaGenetico,saltos:renderSaltos,embriones:renderEmbriones,ferias:renderFerias,nomina:renderNomina,consumos:renderConsumos,planeador:renderPlaneadorSection};
   if(renders[name]) renders[name]();
 }
 
@@ -429,6 +444,37 @@ function renderDashboard(){
       <div class="stat-card green"><div class="stat-num">${formatPeso(totalNomina)}</div><div class="stat-label">Nómina Mensual</div></div>
       <div class="stat-card"><div class="stat-num">${formatPeso(Math.round(totalConsumo))}</div><div class="stat-label">Consumo Mensual</div></div>
     </div>
+
+    <h3 class="dash-subtitle">🐎 Distribución por Andar</h3>
+    <div class="mini-cards-row">
+      ${(()=>{
+        const activos = DB.animales.filter(a=>a.estado==='En Propiedad'||a.estado==='Cedido');
+        const byAndar = {};
+        activos.forEach(a=>{ if(a.andar){ byAndar[a.andar]=(byAndar[a.andar]||0)+1; } });
+        return Object.entries(byAndar).sort((a,b)=>a[0].localeCompare(b[0])).map(([andar,cnt])=>`<div class="mini-card"><div class="mini-val">${cnt}</div><div class="mini-lbl">${andar}</div></div>`).join('') || '<span style="color:#999;font-size:0.85rem">Sin datos</span>';
+      })()}
+    </div>
+
+    <h3 class="dash-subtitle">👤 Distribución por Propietario</h3>
+    <div class="mini-cards-row">
+      ${(()=>{
+        const activos = DB.animales.filter(a=>a.estado!=='Vendido');
+        const byProp = {};
+        activos.forEach(a=>{ if(a.propietario){ byProp[a.propietario]=(byProp[a.propietario]||0)+1; } });
+        return Object.entries(byProp).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([p,cnt])=>`<div class="mini-card"><div class="mini-val">${cnt}</div><div class="mini-lbl">${p}</div></div>`).join('') || '<span style="color:#999;font-size:0.85rem">Sin datos</span>';
+      })()}
+    </div>
+
+    <h3 class="dash-subtitle">🌿 Distribución por Pasta</h3>
+    <div class="mini-cards-row">
+      ${(()=>{
+        const activos = DB.animales.filter(a=>a.estado!=='Vendido');
+        const byPasta = {};
+        activos.forEach(a=>{ if(a.pasta){ byPasta[a.pasta]=(byPasta[a.pasta]||0)+1; } });
+        return Object.entries(byPasta).sort((a,b)=>b[1]-a[1]).map(([p,cnt])=>`<div class="mini-card"><div class="mini-val">${cnt}</div><div class="mini-lbl">${p}</div></div>`).join('') || '<span style="color:#999;font-size:0.85rem">Sin datos</span>';
+      })()}
+    </div>
+
     <div class="dash-section-title">Animales más recientes</div>
     <div class="table-wrap recent-table">
       <table>
@@ -436,7 +482,7 @@ function renderDashboard(){
         <tbody>${recientes.map(a=>`
           <tr>
             <td><strong>${esc(a.nombre)}</strong></td>
-            <td>${a.genero==='M'?'♂ Macho':'♀ Hembra'}</td>
+            <td>${a.genero==='M'?'M':'H'}</td>
             <td>${a.fecha_nac||'-'}</td>
             <td>${calcMeses(a.fecha_nac)}</td>
             <td>${esc(a.pasta)||'-'}</td>
@@ -488,10 +534,26 @@ function renderAnimales(){
     </div>
     <div class="table-wrap">
       <table id="anim-table">
+        <colgroup>
+          <col style="width:40px">   <!-- # -->
+          <col style="width:260px">  <!-- Nombre -->
+          <col style="width:50px">   <!-- G -->
+          <col style="width:160px">  <!-- Padre -->
+          <col style="width:160px">  <!-- Madre -->
+          <col style="width:160px">  <!-- ABM -->
+          <col style="width:100px">  <!-- Fecha Nac -->
+          <col style="width:80px">   <!-- Edad -->
+          <col style="width:70px">   <!-- Andar -->
+          <col style="width:130px">  <!-- Pasta -->
+          <col style="width:120px">  <!-- Montador -->
+          <col style="width:130px">  <!-- Propietario -->
+          <col style="width:110px">  <!-- Estado -->
+          <col style="width:100px">  <!-- Acciones -->
+        </colgroup>
         <thead><tr>
           <th>#</th><th>Nombre</th><th>G</th><th>Padre</th><th>Madre</th><th>ABM</th>
           <th>Fecha Nac.</th><th>Edad</th><th>Andar</th><th>Pasta</th><th>Montador</th>
-          <th>Propietario</th><th>Estado</th><th>Nota</th><th>Acciones</th>
+          <th>Propietario</th><th>Estado</th><th>Acciones</th>
         </tr></thead>
         <tbody id="anim-tbody"></tbody>
       </table>
@@ -516,19 +578,18 @@ function filterAnimales(){
   tbody.innerHTML = rows.map(a=>`
     <tr>
       <td>${a.id}</td>
-      <td><strong>${esc(a.nombre)}</strong></td>
-      <td style="text-align:center">${a.genero==='M'?'♂':'♀'}</td>
-      <td>${esc(a.padre)||'-'}</td>
-      <td>${esc(a.madre)||'-'}</td>
-      <td>${esc(a.abm)||'-'}</td>
-      <td>${a.fecha_nac||'-'}</td>
-      <td>${calcMeses(a.fecha_nac)}</td>
-      <td><strong>${esc(a.andar)}</strong></td>
-      <td>${esc(a.pasta)||'-'}</td>
-      <td>${esc(a.montador)||'-'}</td>
-      <td>${esc(a.propietario)||'-'}</td>
-      <td>${estadoBadge(a.estado)}</td>
-      <td style="max-width:180px;white-space:normal;font-size:0.78rem">${esc(a.nota)||'-'}</td>
+      <td style="cursor:pointer;white-space:nowrap" onclick="openAnimalProfile(${a.id})"><strong>${esc(a.nombre)}</strong>${a.nota?`<span class="nota-bubble" title="${esc(a.nota)}">💬</span>`:''}</td>
+      <td style="text-align:center;white-space:nowrap">${a.genero==='M'?'M':'H'}</td>
+      <td style="white-space:nowrap">${esc(a.padre)||'-'}</td>
+      <td style="white-space:nowrap">${esc(a.madre)||'-'}</td>
+      <td style="white-space:nowrap">${esc(a.abm)||'-'}</td>
+      <td style="white-space:nowrap">${a.fecha_nac||'-'}</td>
+      <td style="white-space:nowrap">${calcMeses(a.fecha_nac)}</td>
+      <td style="white-space:nowrap"><strong>${esc(a.andar)}</strong></td>
+      <td style="white-space:nowrap">${esc(a.pasta)||'-'}</td>
+      <td style="white-space:nowrap">${esc(a.montador)||'-'}</td>
+      <td style="white-space:nowrap">${esc(a.propietario)||'-'}</td>
+      <td style="white-space:nowrap">${estadoBadge(a.estado)}</td>
       <td class="actions">
         <button class="btn btn-sm btn-edit" onclick="editAnimal(${a.id})">Editar</button>
         <button class="btn btn-sm btn-danger" onclick="deleteAnimal(${a.id})">Borrar</button>
@@ -539,20 +600,20 @@ function filterAnimales(){
 function animalForm(a={}){
   return `<div class="form-grid">
     <div class="form-group form-full"><label>Nombre</label><input id="f-nombre" value="${esc(a.nombre||'')}"></div>
-    <div class="form-group"><label>Género</label><select id="f-genero"><option value="M" ${a.genero==='M'?'selected':''}>Macho</option><option value="H" ${a.genero==='H'?'selected':''}>Hembra</option></select></div>
+    <div class="form-group"><label>Género</label><select id="f-genero"><option value="M" ${a.genero==='M'?'selected':''}>M - Macho</option><option value="H" ${a.genero==='H'?'selected':''}>H - Hembra</option></select></div>
     <div class="form-group"><label>Fecha Nac.</label><input type="date" id="f-fecha_nac" value="${esc(a.fecha_nac||'')}"></div>
     <div class="form-group"><label>Padre</label><input id="f-padre" list="list-nombres" autocomplete="off" value="${esc(a.padre||'')}"></div>
     <div class="form-group"><label>Madre</label><input id="f-madre" list="list-nombres" autocomplete="off" value="${esc(a.madre||'')}"></div>
     <div class="form-group form-full"><label>ABM</label><input id="f-abm" list="list-abm" autocomplete="off" value="${esc(a.abm||'')}"></div>
     <datalist id="list-nombres"></datalist>
     <datalist id="list-abm"></datalist>
-    <div class="form-group"><label>Pasta</label><input id="f-pasta" value="${esc(a.pasta||'')}"></div>
-    <div class="form-group"><label>Montador</label><input id="f-montador" value="${esc(a.montador||'')}"></div>
-    <div class="form-group"><label>Propietario</label><input id="f-propietario" value="${esc(a.propietario||'')}"></div>
+    <div class="form-group"><label>Pasta</label><input id="f-pasta" class="form-input" list="list-pasta" autocomplete="off" value="${esc(a.pasta||'')}"></div>
+    <div class="form-group"><label>Montador</label><input id="f-montador" class="form-input" list="list-montador" autocomplete="off" value="${esc(a.montador||'')}"></div>
+    <div class="form-group"><label>Propietario</label><input id="f-propietario" class="form-input" list="list-propietario" autocomplete="off" value="${esc(a.propietario||'')}"></div>
     <div class="form-group"><label>Estado</label><select id="f-estado">
       ${['En Propiedad','Vendido','Cedido'].map(s=>`<option ${a.estado===s?'selected':''}>${s}</option>`).join('')}
     </select></div>
-    <div class="form-group"><label>Andar</label><input id="f-andar" value="${esc(a.andar||'')}"></div>
+    <div class="form-group"><label>Andar</label><input id="f-andar" class="form-input" list="list-andar" autocomplete="off" value="${esc(a.andar||'')}"></div>
     <div class="form-group form-full"><label>Nota</label><textarea id="f-nota">${esc(a.nota||'')}</textarea></div>
   </div>`;
 }
@@ -573,16 +634,20 @@ function getAnimalFormData(){
   };
 }
 function populateDataLists() {
-  const nombresSet = new Set(DB.animales.map(a => a.nombre).filter(Boolean));
-  const abmSet = new Set(DB.animales.map(a => a.abm).filter(Boolean));
-  const dlNombres = document.getElementById('list-nombres');
-  if(dlNombres) {
-    dlNombres.innerHTML = [...nombresSet].map(n => `<option value="${n}">`).join('');
-  }
-  const dlAbm = document.getElementById('list-abm');
-  if(dlAbm) {
-    dlAbm.innerHTML = [...abmSet].map(a => `<option value="${a}">`).join('');
-  }
+  const animales = DB.animales || [];
+  const sets = {
+    'list-nombres': [...new Set(animales.map(a=>a.nombre).filter(Boolean))],
+    'list-abm': [...new Set(animales.map(a=>a.abm).filter(Boolean))],
+    'list-andar': [...new Set(animales.map(a=>a.andar).filter(Boolean))],
+    'list-pasta': [...new Set(animales.map(a=>a.pasta).filter(Boolean))],
+    'list-montador': [...new Set(animales.map(a=>a.montador).filter(Boolean))],
+    'list-propietario': [...new Set(animales.map(a=>a.propietario).filter(Boolean))],
+  };
+  Object.entries(sets).forEach(([id, vals]) => {
+    let dl = document.getElementById(id);
+    if(!dl){ dl = document.createElement('datalist'); dl.id = id; document.body.appendChild(dl); }
+    dl.innerHTML = vals.map(v=>`<option value="${v}">`).join('');
+  });
 }
 async function addAnimal(){
   populateDataLists(); openModal('Agregar Animal', animalForm(), async ()=>{
@@ -612,6 +677,98 @@ async function deleteAnimal(id){
   if(error){alert('Error: '+error.message);return;}
   DB.animales = DB.animales.filter(x=>x.id!==id);
   filterAnimales();
+}
+
+// ── ANIMAL PROFILE ────────────────────────────────────
+async function openAnimalProfile(id) {
+  const a = DB.animales.find(x => x.id === id);
+  if (!a) return;
+  const { data: historial } = await db.from('historial_animal')
+    .select('*').eq('animal_nombre', a.nombre).order('fecha', {ascending: false});
+  const hijosComoMadre = DB.animales.filter(x => x.madre === a.nombre).length;
+  const hijosComoPadre = DB.animales.filter(x => x.padre === a.nombre).length;
+  const saltosVendidos = DB.saltos ? DB.saltos.filter(x => x.caballo === a.nombre || x.yegua === a.nombre).length : 0;
+  const tipoColors = {
+    'Parto':'#16a34a','Enfermedad':'#dc2626','Herrada':'#d97706',
+    'Preñez':'#9333ea','Salto':'#2563eb','Otro':'#6b7280'
+  };
+  const histHTML = historial && historial.length > 0
+    ? historial.map(h => `
+        <div style="display:flex;gap:12px;padding:12px;border-bottom:1px solid #e8dcc8;align-items:flex-start">
+          <span style="background:${tipoColors[h.tipo]||'#6b7280'};color:#fff;padding:3px 10px;border-radius:20px;font-size:0.75rem;white-space:nowrap">${h.tipo}</span>
+          <div style="flex:1">
+            <div style="font-size:0.8rem;color:#999">${h.fecha || ''}</div>
+            <div style="font-weight:500">${h.descripcion || ''}</div>
+            ${h.notas ? `<div style="font-size:0.85rem;color:#666">${h.notas}</div>` : ''}
+          </div>
+          <button onclick="deleteHistorial(${h.id}, ${id})" style="background:none;border:none;cursor:pointer;color:#dc2626">🗑️</button>
+        </div>`).join('')
+    : '<div style="color:#999;padding:20px;text-align:center">Sin registros en el historial</div>';
+  const meses = calcMeses(a.fecha_nac);
+  const content = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="background:#f5f0e8;border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.5rem;font-weight:700;color:#1a3a2a">${meses}</div>
+        <div style="font-size:0.75rem;color:#666">EDAD</div>
+      </div>
+      <div style="background:#f5f0e8;border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.5rem;font-weight:700;color:#1a3a2a">${hijosComoMadre + hijosComoPadre}</div>
+        <div style="font-size:0.75rem;color:#666">HIJOS EN CRIADERO</div>
+      </div>
+      <div style="background:#f5f0e8;border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.5rem;font-weight:700;color:#1a3a2a">${saltosVendidos}</div>
+        <div style="font-size:0.75rem;color:#666">SALTOS/EMBRIONES</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;font-size:0.9rem">
+      <div><span style="color:#999">Padre:</span> ${a.padre||'-'}</div>
+      <div><span style="color:#999">Madre:</span> ${a.madre||'-'}</div>
+      <div><span style="color:#999">ABM:</span> ${a.abm||'-'}</div>
+      <div><span style="color:#999">Andar:</span> ${a.andar||'-'}</div>
+      <div><span style="color:#999">Pasta en:</span> ${a.pasta||'-'}</div>
+      <div><span style="color:#999">Montador:</span> ${a.montador||'-'}</div>
+      <div><span style="color:#999">Propietario:</span> ${a.propietario||'-'}</div>
+      <div><span style="color:#999">Estado:</span> ${a.estado||'-'}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0;color:#1a3a2a;font-family:'Playfair Display'">📋 Historial</h3>
+      <button onclick="addHistorial('${a.nombre.replace(/'/g,"\\'")}', ${id})" class="btn-primary btn" style="font-size:0.85rem;padding:6px 14px">+ Agregar Registro</button>
+    </div>
+    <div id="historial-list" style="max-height:300px;overflow-y:auto;border:1px solid #e8dcc8;border-radius:8px">
+      ${histHTML}
+    </div>
+  `;
+  openModal(`🐴 ${a.nombre}`, content, null);
+  document.querySelector('.modal-box').style.maxWidth = '700px';
+}
+
+async function addHistorial(animalNombre, animalId) {
+  const tipos = ['Parto','Enfermedad','Herrada','Preñez','Salto','Otro'];
+  openModal('Nuevo Registro de Historial', `
+    <div class="form-grid">
+      <label>Tipo<select id="h-tipo" class="form-input">
+        ${tipos.map(t=>`<option>${t}</option>`).join('')}
+      </select></label>
+      <label>Fecha<input id="h-fecha" class="form-input" type="date"></label>
+      <label style="grid-column:span 2">Descripción<input id="h-desc" class="form-input" type="text" placeholder="Ej: Parto, potrillo macho, padre Hidalgo..."></label>
+      <label style="grid-column:span 2">Notas adicionales<textarea id="h-notas" class="form-input" rows="2"></textarea></label>
+    </div>
+  `, async () => {
+    await db.from('historial_animal').insert({
+      animal_nombre: animalNombre,
+      tipo: document.getElementById('h-tipo').value,
+      fecha: document.getElementById('h-fecha').value || null,
+      descripcion: document.getElementById('h-desc').value,
+      notas: document.getElementById('h-notas').value
+    });
+    openAnimalProfile(animalId);
+  });
+}
+
+async function deleteHistorial(histId, animalId) {
+  if(!confirm('¿Eliminar este registro?')) return;
+  await db.from('historial_animal').delete().eq('id', histId);
+  openAnimalProfile(animalId);
 }
 
 // ── SALTOS ────────────────────────────────────────────
@@ -970,71 +1127,134 @@ async function deleteFeria(id){
 }
 
 // ── NÓMINA ────────────────────────────────────────────
+function calcNomina(salarioBase, diasLaborados, comisiones=0, bonificaciones=0) {
+  const SMLMV = 1423500;
+  const AUX_TRANSP = 106454;
+  const salarioProp = (salarioBase / 30) * diasLaborados;
+  const auxTransp = salarioBase <= (SMLMV * 2) ? AUX_TRANSP : 0;
+  const baseAportes = salarioProp + comisiones + bonificaciones;
+  const totalDevengado = baseAportes + auxTransp;
+  const saludEmpleado = Math.round(baseAportes * 0.04);
+  const pensionEmpleado = Math.round(baseAportes * 0.04);
+  const totalDeducciones = saludEmpleado + pensionEmpleado;
+  const netoPagado = totalDevengado - totalDeducciones;
+  const saludEmpleador = Math.round(baseAportes * 0.085);
+  const pensionEmpleador = Math.round(baseAportes * 0.12);
+  const arl = Math.round(baseAportes * 0.00522);
+  const cajaComp = Math.round(baseAportes * 0.04);
+  const icbf = Math.round(baseAportes * 0.03);
+  const sena = Math.round(baseAportes * 0.02);
+  const totalEmpleador = saludEmpleador + pensionEmpleador + arl + cajaComp + icbf + sena;
+  const prima = Math.round(baseAportes * 0.0833);
+  const cesantias = Math.round(baseAportes * 0.0833);
+  const intCesantias = Math.round(cesantias * 0.12 / 12);
+  const vacaciones = Math.round(salarioProp * 0.0417);
+  const totalPrestaciones = prima + cesantias + intCesantias + vacaciones;
+  const costoEmpresa = netoPagado + totalEmpleador + totalPrestaciones;
+  return {
+    salarioProp, auxTransp, baseAportes, totalDevengado,
+    saludEmpleado, pensionEmpleado, totalDeducciones, netoPagado,
+    saludEmpleador, pensionEmpleador, arl, cajaComp, icbf, sena, totalEmpleador,
+    prima, cesantias, intCesantias, vacaciones, totalPrestaciones,
+    costoEmpresa
+  };
+}
+
 function renderNomina(){
   const el = document.getElementById('sec-nomina');
-  const totalNeto = DB.nomina.reduce((a,n)=>a+n.neto_pagado,0);
+  const totalNeto = DB.nomina.reduce((a,n)=>a+(calcNomina(n.salario_base||0, n.dias_laborados||30, n.comisiones||0, n.bonificaciones||0).netoPagado),0);
   el.innerHTML = `
     <div class="page-header">
       <h1>👷 Nómina</h1>
-      <p>Liquidación de personal del criadero</p>
+      <p>Liquidación de personal del criadero — Ley colombiana 2024/2025</p>
     </div>
     <div class="toolbar">
       <button class="btn btn-primary" onclick="addNomina()">+ Agregar Empleado</button>
-      <span style="margin-left:auto;font-weight:600;color:#1a3a2a">Total nómina: ${formatPeso(totalNeto)}</span>
+      <span style="margin-left:auto;font-weight:600;color:#1a3a2a">Total neto: ${formatPeso(Math.round(totalNeto))}</span>
     </div>
     <div class="nomina-grid" id="nomina-grid"></div>`;
   renderNominaCards();
 }
+
 function renderNominaCards(){
   const grid = document.getElementById('nomina-grid');
   if(!grid) return;
-  grid.innerHTML = DB.nomina.map(n=>`
+  grid.innerHTML = DB.nomina.map(n=>{
+    const c = calcNomina(n.salario_base||0, n.dias_laborados||30, n.comisiones||0, n.bonificaciones||0);
+    return `
     <div class="nomina-card">
-      <div class="nomina-name">${esc(n.nombre)}</div>
-      <div class="nomina-row"><span>Salario Base</span><span>${formatPeso(n.salario_base)}</span></div>
-      <div class="nomina-row"><span>Días Laborados</span><span>${n.dias_laborados}</span></div>
-      <div class="nomina-row"><span>Aux. Transporte</span><span>${formatPeso(n.aux_transporte)}</span></div>
-      <div class="nomina-row"><span>Total Devengado</span><span>${formatPeso(n.total_devengado)}</span></div>
-      <div class="nomina-row"><span>Salud (4%)</span><span>- ${formatPeso(n.salud)}</span></div>
-      <div class="nomina-row"><span>Pensión (4%)</span><span>- ${formatPeso(n.pension)}</span></div>
-      <div class="nomina-row"><span>Total Deducciones</span><span>- ${formatPeso(n.total_deducciones)}</span></div>
-      <div class="nomina-row nomina-total"><span>Neto a Pagar</span><span style="color:#2d5a3d">${formatPeso(n.neto_pagado)}</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div class="nomina-name" style="margin:0">${esc(n.nombre)}</div>
+        <div style="font-family:'Playfair Display';font-size:1.3rem;font-weight:700;color:#2d5a3d">${formatPeso(Math.round(c.netoPagado))}</div>
+      </div>
+      <div style="font-size:0.75rem;color:#666;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;border-top:1px solid #e8dcc8;padding-top:8px">Devengado</div>
+      <div class="nomina-row"><span>Salario proporcional (${n.dias_laborados||30}d)</span><span>${formatPeso(Math.round(c.salarioProp))}</span></div>
+      ${c.auxTransp>0?`<div class="nomina-row"><span>Aux. Transporte</span><span>${formatPeso(c.auxTransp)}</span></div>`:''}
+      ${(n.comisiones||0)>0?`<div class="nomina-row"><span>Comisiones</span><span>${formatPeso(n.comisiones)}</span></div>`:''}
+      ${(n.bonificaciones||0)>0?`<div class="nomina-row"><span>Bonificaciones</span><span>${formatPeso(n.bonificaciones)}</span></div>`:''}
+      <div class="nomina-row" style="font-weight:600"><span>Total Devengado</span><span>${formatPeso(Math.round(c.totalDevengado))}</span></div>
+      <div style="font-size:0.75rem;color:#666;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 6px;border-top:1px solid #e8dcc8;padding-top:8px">Deducciones Empleado</div>
+      <div class="nomina-row"><span>Salud (4%)</span><span>- ${formatPeso(c.saludEmpleado)}</span></div>
+      <div class="nomina-row"><span>Pensión (4%)</span><span>- ${formatPeso(c.pensionEmpleado)}</span></div>
+      <div class="nomina-row" style="font-weight:600"><span>Total Deducciones</span><span>- ${formatPeso(c.totalDeducciones)}</span></div>
+      <div class="nomina-row nomina-total" style="background:#f0faf4;border-radius:8px;padding:8px 10px;margin-top:8px"><span>🟢 Neto a Pagar</span><span style="color:#2d5a3d;font-size:1rem">${formatPeso(Math.round(c.netoPagado))}</span></div>
+      <details style="margin-top:10px">
+        <summary style="cursor:pointer;font-size:0.78rem;color:#666;text-transform:uppercase;letter-spacing:0.05em">Aportes Empleador ▸</summary>
+        <div style="margin-top:8px">
+          <div class="nomina-row"><span>Salud (8.5%)</span><span>${formatPeso(c.saludEmpleador)}</span></div>
+          <div class="nomina-row"><span>Pensión (12%)</span><span>${formatPeso(c.pensionEmpleador)}</span></div>
+          <div class="nomina-row"><span>ARL (0.522%)</span><span>${formatPeso(c.arl)}</span></div>
+          <div class="nomina-row"><span>Caja Compensación (4%)</span><span>${formatPeso(c.cajaComp)}</span></div>
+          <div class="nomina-row"><span>ICBF (3%)</span><span>${formatPeso(c.icbf)}</span></div>
+          <div class="nomina-row"><span>SENA (2%)</span><span>${formatPeso(c.sena)}</span></div>
+          <div class="nomina-row" style="font-weight:600"><span>Total Empleador</span><span>${formatPeso(c.totalEmpleador)}</span></div>
+        </div>
+      </details>
+      <details style="margin-top:6px">
+        <summary style="cursor:pointer;font-size:0.78rem;color:#666;text-transform:uppercase;letter-spacing:0.05em">Prestaciones Sociales (provisión) ▸</summary>
+        <div style="margin-top:8px">
+          <div class="nomina-row"><span>Prima (8.33%)</span><span>${formatPeso(c.prima)}</span></div>
+          <div class="nomina-row"><span>Cesantías (8.33%)</span><span>${formatPeso(c.cesantias)}</span></div>
+          <div class="nomina-row"><span>Int. Cesantías (1%)</span><span>${formatPeso(c.intCesantias)}</span></div>
+          <div class="nomina-row"><span>Vacaciones (4.17%)</span><span>${formatPeso(c.vacaciones)}</span></div>
+          <div class="nomina-row" style="font-weight:600"><span>Total Prestaciones</span><span>${formatPeso(c.totalPrestaciones)}</span></div>
+        </div>
+      </details>
+      <div class="nomina-row nomina-total" style="background:#fff8e8;border-radius:8px;padding:8px 10px;margin-top:10px"><span>🏢 Costo Total Empresa</span><span style="color:#c9a84c;font-size:1rem">${formatPeso(Math.round(c.costoEmpresa))}</span></div>
       <div style="margin-top:12px;display:flex;gap:8px">
         <button class="btn btn-sm btn-edit" onclick="editNomina(${n.id})">Editar</button>
         <button class="btn btn-sm btn-danger" onclick="deleteNomina(${n.id})">Borrar</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
+
 function nominaForm(n={}){
   return `<div class="form-grid">
-    <div class="form-group form-full"><label>Nombre</label><input id="f-nombre" value="${esc(n.nombre||'')}"></div>
-    <div class="form-group"><label>Salario Base</label><input type="number" id="f-salario_base" value="${n.salario_base||0}"></div>
-    <div class="form-group"><label>Días Laborados</label><input type="number" id="f-dias_laborados" value="${n.dias_laborados||30}"></div>
-    <div class="form-group"><label>Aux. Transporte</label><input type="number" id="f-aux_transporte" value="${n.aux_transporte||106454}"></div>
-    <div class="form-group"><label>Total Devengado</label><input type="number" id="f-total_devengado" value="${n.total_devengado||0}"></div>
-    <div class="form-group"><label>Salud</label><input type="number" id="f-salud" value="${n.salud||0}"></div>
-    <div class="form-group"><label>Pensión</label><input type="number" id="f-pension" value="${n.pension||0}"></div>
-    <div class="form-group"><label>Total Deducciones</label><input type="number" id="f-total_deducciones" value="${n.total_deducciones||0}"></div>
-    <div class="form-group"><label>Neto Pagado</label><input type="number" id="f-neto_pagado" value="${n.neto_pagado||0}"></div>
+    <div class="form-group form-full"><label>Nombre</label><input id="f-nombre" class="form-input" value="${esc(n.nombre||'')}"></div>
+    <div class="form-group"><label>Salario Base</label><input type="number" id="f-salario_base" class="form-input" value="${n.salario_base||0}"></div>
+    <div class="form-group"><label>Días Laborados</label><input type="number" id="f-dias_laborados" class="form-input" value="${n.dias_laborados||30}"></div>
+    <div class="form-group"><label>Comisiones</label><input type="number" id="f-comisiones" class="form-input" value="${n.comisiones||0}"></div>
+    <div class="form-group"><label>Bonificaciones</label><input type="number" id="f-bonificaciones" class="form-input" value="${n.bonificaciones||0}"></div>
   </div>`;
 }
 function getNominaFormData(){
   return {
-    nombre:document.getElementById('f-nombre').value,
-    salario_base:Number(document.getElementById('f-salario_base').value)||0,
-    dias_laborados:Number(document.getElementById('f-dias_laborados').value)||0,
-    aux_transporte:Number(document.getElementById('f-aux_transporte').value)||0,
-    total_devengado:Number(document.getElementById('f-total_devengado').value)||0,
-    salud:Number(document.getElementById('f-salud').value)||0,
-    pension:Number(document.getElementById('f-pension').value)||0,
-    total_deducciones:Number(document.getElementById('f-total_deducciones').value)||0,
-    neto_pagado:Number(document.getElementById('f-neto_pagado').value)||0
+    nombre: document.getElementById('f-nombre').value,
+    salario_base: Number(document.getElementById('f-salario_base').value)||0,
+    dias_laborados: Number(document.getElementById('f-dias_laborados').value)||30,
+    comisiones: Number(document.getElementById('f-comisiones').value)||0,
+    bonificaciones: Number(document.getElementById('f-bonificaciones').value)||0,
+    // Legacy fields computed for backward compat
+    neto_pagado: 0
   };
 }
 async function addNomina(){
   openModal('Agregar Empleado', nominaForm(), async ()=>{
     const d = getNominaFormData();
     if(!d.nombre){alert('El nombre es requerido');return;}
+    const c = calcNomina(d.salario_base, d.dias_laborados, d.comisiones, d.bonificaciones);
+    d.neto_pagado = Math.round(c.netoPagado);
     const {data,error} = await db.from('nomina').insert([d]).select();
     if(error){alert('Error: '+error.message);return;}
     DB.nomina.push(data[0]);
@@ -1046,6 +1266,8 @@ async function editNomina(id){
   if(!n) return;
   openModal('Editar Empleado', nominaForm(n), async ()=>{
     const d = getNominaFormData();
+    const c = calcNomina(d.salario_base, d.dias_laborados, d.comisiones, d.bonificaciones);
+    d.neto_pagado = Math.round(c.netoPagado);
     const {error} = await db.from('nomina').update(d).eq('id',id);
     if(error){alert('Error: '+error.message);return;}
     Object.assign(n, d);
@@ -1346,6 +1568,127 @@ function deleteFeriaPlaneador(id) {
   renderPlaneador();
 }
 
+// ── MAPA GENÉTICO ─────────────────────────────────────
+function renderMapaGenetico() {
+  const animales = DB.animales || [];
+  const padreCount = {};
+  animales.forEach(a => { if(a.padre) padreCount[a.padre] = (padreCount[a.padre]||0)+1; });
+  const topPadres = Object.entries(padreCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const madreCount = {};
+  animales.forEach(a => { if(a.madre) madreCount[a.madre] = (madreCount[a.madre]||0)+1; });
+  const topMadres = Object.entries(madreCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const abmCount = {};
+  animales.forEach(a => { if(a.abm && a.abm !== '-') abmCount[a.abm] = (abmCount[a.abm]||0)+1; });
+  const topAbm = Object.entries(abmCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const crucesCount = {};
+  animales.forEach(a => {
+    if(a.padre && a.madre) {
+      const key = `${a.padre} × ${a.madre}`;
+      crucesCount[key] = (crucesCount[key]||0)+1;
+    }
+  });
+  const topCruces = Object.entries(crucesCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const maxPadre = topPadres[0]?.[1] || 1;
+  const maxMadre = topMadres[0]?.[1] || 1;
+  const animalOptions = animales.map(a=>`<option value="${a.id}">${esc(a.nombre)}</option>`).join('');
+
+  document.getElementById('sec-mapa').innerHTML = `
+    <div class="section-header">
+      <div><h1>🧬 Mapa Genético</h1><p>Análisis de cruces y genealogía del criadero</p></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">
+      <div style="background:#fff;border-radius:12px;padding:20px;border:1px solid #e8dcc8">
+        <h3 style="color:#1a3a2a;font-family:'Playfair Display';margin:0 0 16px;border-bottom:2px solid #c9a84c;padding-bottom:8px">🐴 Sementales más usados</h3>
+        ${topPadres.length ? topPadres.map(([nombre,count],i) => `
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:3px">
+              <span><strong>#${i+1}</strong> ${esc(nombre)}</span><span style="color:#c9a84c;font-weight:700">${count} hijos</span>
+            </div>
+            <div style="background:#f0f0f0;border-radius:4px;height:6px">
+              <div style="background:#c9a84c;height:6px;border-radius:4px;width:${(count/maxPadre*100)}%"></div>
+            </div>
+          </div>`).join('') : '<p style="color:#999;font-size:0.85rem">Sin datos</p>'}
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:20px;border:1px solid #e8dcc8">
+        <h3 style="color:#1a3a2a;font-family:'Playfair Display';margin:0 0 16px;border-bottom:2px solid #c9a84c;padding-bottom:8px">🐎 Yeguas más productivas</h3>
+        ${topMadres.length ? topMadres.map(([nombre,count],i) => `
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:3px">
+              <span><strong>#${i+1}</strong> ${esc(nombre)}</span><span style="color:#1a3a2a;font-weight:700">${count} potrillos</span>
+            </div>
+            <div style="background:#f0f0f0;border-radius:4px;height:6px">
+              <div style="background:#1a3a2a;height:6px;border-radius:4px;width:${(count/maxMadre*100)}%"></div>
+            </div>
+          </div>`).join('') : '<p style="color:#999;font-size:0.85rem">Sin datos</p>'}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">
+      <div style="background:#fff;border-radius:12px;padding:20px;border:1px solid #e8dcc8">
+        <h3 style="color:#1a3a2a;font-family:'Playfair Display';margin:0 0 16px;border-bottom:2px solid #c9a84c;padding-bottom:8px">🩸 Sangres más repetidas (ABM)</h3>
+        <table style="width:100%;font-size:0.85rem">
+          ${topAbm.map(([abm,count],i)=>`<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:6px 0"><strong>#${i+1}</strong> ${esc(abm)}</td><td style="text-align:right;color:#c9a84c;font-weight:700">${count}</td></tr>`).join('')}
+        </table>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:20px;border:1px solid #e8dcc8">
+        <h3 style="color:#1a3a2a;font-family:'Playfair Display';margin:0 0 16px;border-bottom:2px solid #c9a84c;padding-bottom:8px">✕ Cruces realizados</h3>
+        <table style="width:100%;font-size:0.82rem">
+          ${topCruces.map(([cruce,count],i)=>`<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:6px 0">${esc(cruce)}</td><td style="text-align:right;color:#1a3a2a;font-weight:700;white-space:nowrap">${count} ${count>1?'hijos':'hijo'}</td></tr>`).join('')}
+        </table>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:20px;border:1px solid #e8dcc8">
+      <h3 style="color:#1a3a2a;font-family:'Playfair Display';margin:0 0 16px;border-bottom:2px solid #c9a84c;padding-bottom:8px">🌳 Árbol Genealógico</h3>
+      <div style="margin-bottom:16px">
+        <label style="font-size:0.85rem;color:#666">Selecciona un animal:</label>
+        <select id="tree-select" class="form-input" style="max-width:350px;margin-top:6px" onchange="renderArbol()">
+          <option value="">-- Seleccionar --</option>
+          ${animalOptions}
+        </select>
+      </div>
+      <div id="arbol-container"></div>
+    </div>
+  `;
+}
+
+function renderArbol() {
+  const id = parseInt(document.getElementById('tree-select').value);
+  const container = document.getElementById('arbol-container');
+  if(!id){ container.innerHTML=''; return; }
+  const animal = DB.animales.find(a=>a.id===id);
+  if(!animal){ container.innerHTML=''; return; }
+  const padre = DB.animales.find(a=>a.nombre===animal.padre);
+  const madre = DB.animales.find(a=>a.nombre===animal.madre);
+  const box = (nombre, sub, color='#1a3a2a', bg='#f5f0e8') =>
+    `<div style="background:${bg};border:2px solid ${color};border-radius:10px;padding:12px 16px;text-align:center;min-width:160px">
+      <div style="font-weight:700;color:${bg==='#1a3a2a'?'#fff':color};font-size:0.9rem">${esc(nombre||'-')}</div>
+      ${sub?`<div style="font-size:0.75rem;color:${bg==='#1a3a2a'?'#c9a84c':'#666'};margin-top:2px">${sub}</div>`:''}
+    </div>`;
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:0">
+      <div style="display:flex;gap:80px;margin-bottom:0">
+        ${box(animal.abm||'ABM Paterno','ABM / Semental','#c9a84c','#fff8e8')}
+        ${box(madre?.abm||'ABM Materno','ABM / Semental','#c9a84c','#fff8e8')}
+      </div>
+      <div style="display:flex;gap:80px;height:30px">
+        <div style="width:2px;background:#c9a84c;margin:0 auto"></div>
+        <div style="width:2px;background:#c9a84c;margin:0 auto"></div>
+      </div>
+      <div style="display:flex;gap:80px;margin-bottom:0">
+        ${box(animal.padre||'Padre desconocido', padre?`${calcMeses(padre.fecha_nac)}`:'Externo','#1a3a2a','#e8f0e8')}
+        ${box(animal.madre||'Madre desconocida', madre?`${calcMeses(madre.fecha_nac)}`:'Externa','#2d5a3d','#e8f4e8')}
+      </div>
+      <div style="display:flex;justify-content:center;height:40px;width:320px;position:relative">
+        <div style="position:absolute;left:25%;top:0;width:2px;height:100%;background:#1a3a2a"></div>
+        <div style="position:absolute;right:25%;top:0;width:2px;height:100%;background:#2d5a3d"></div>
+        <div style="position:absolute;left:25%;top:100%;width:50%;height:2px;background:#1a3a2a;transform:translateY(-100%)"></div>
+      </div>
+      <div style="transform:translateY(-8px)">
+        ${box(animal.nombre, `${animal.genero==='M'?'Macho':'Hembra'} · ${calcMeses(animal.fecha_nac)} · ${animal.andar||''}`, '#fff', '#1a3a2a')}
+      </div>
+    </div>
+  `;
+}
+
 // ── INIT ──────────────────────────────────────────────
 async function init(){
   showLoading();
@@ -1356,6 +1699,7 @@ async function init(){
     console.error('Init error', e);
   }
   hideLoading();
+  populateDataLists();
   renderDashboard();
 }
 
